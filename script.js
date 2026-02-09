@@ -12,6 +12,7 @@ const settingsForm = document.getElementById("settings-form");
 const paymentForm = document.getElementById("payment-form");
 const paymentsBody = document.getElementById("paymentsBody");
 const summary = document.getElementById("summary");
+const topStatus = document.getElementById("topStatus");
 const clearDataBtn = document.getElementById("clearData");
 
 const monthlyDueInput = document.getElementById("monthlyDue");
@@ -150,12 +151,15 @@ function renderSummary(finalBalance) {
       ? `Tiene saldo a favor de ${money(Math.abs(finalBalance))}.`
       : "Esta al dia sin saldo pendiente ni saldo a favor.";
 
+  topStatus.innerHTML = `
+    <div><strong>Estado actual:</strong> ${statusText}</div>
+    <div><strong>Total exigido para el proximo mes:</strong> <span class="amount-general">${money(nextRequired)}</span></div>
+  `;
+
   summary.innerHTML = `
     <div><strong>Cuota mensual:</strong> <span class="amount-general">${money(monthlyDue)}</span></div>
     <div><strong>Comision secretaria:</strong> <span class="amount-commission">${secretaryPercent.toFixed(4)}% (${money(secretaryMonthly)} por cuota base)</span></div>
     <div><strong>Neto para usuaria por cuota base:</strong> <span class="amount-net">${money(userMonthly)}</span></div>
-    <div><strong>Estado actual:</strong> ${statusText}</div>
-    <div><strong>Total exigido para el proximo mes:</strong> <span class="amount-general">${money(nextRequired)}</span></div>
   `;
 }
 

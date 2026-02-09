@@ -31,6 +31,19 @@ body {
   gap: 1rem;
 }
 
+.top-row {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: stretch;
+}
+
+.title-block {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+}
+
 h1,
 h2 {
   margin: 0;
@@ -101,6 +114,12 @@ button.danger {
 .totals {
   display: grid;
   gap: 0.4rem;
+}
+
+.top-status {
+  display: grid;
+  gap: 0.45rem;
+  align-content: center;
 }
 
 .table-header {
@@ -187,5 +206,9 @@ tr:last-child td {
   .app {
     width: 95%;
     margin: 1rem auto;
+  }
+
+  .top-row {
+    grid-template-columns: 1fr;
   }
 }
