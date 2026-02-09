@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control de Prestamo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Contabilizacion de Prestamo</h1>
+    <p class="subtitle">Registra pagos por mes, calcula adelantos/atrasos y la comision de secretaria.</p>
+
+    <section class="card">
+      <h2>Configuracion</h2>
+      <form id="settings-form" class="grid-form">
+        <label>
+          Cuota mensual (USD)
+          <input type="number" id="monthlyDue" min="0" step="0.01" required />
+        </label>
+        <label>
+          Comision secretaria (%)
+          <input type="number" id="secretaryPercent" min="0" max="100" step="0.01" required />
+        </label>
+        <button type="submit">Guardar configuracion</button>
+      </form>
+      <p class="hint">Ejemplo base: cuota 120, comision 16.6667% (equivale a 20 de cada 120).</p>
+    </section>
+
+    <section class="card">
+      <h2>Registrar pago</h2>
+      <form id="payment-form" class="grid-form">
+        <label>
+          Mes
+          <input type="month" id="paymentMonth" required />
+        </label>
+        <label>
+          Monto pagado (USD)
+          <input type="number" id="paymentAmount" min="0" step="0.01" required />
+        </label>
+        <button type="submit">Agregar pago</button>
+      </form>
+    </section>
+
+    <section class="card totals" id="summary"></section>
+
+    <section class="card">
+      <div class="table-header">
+        <h2>Historial y calculos</h2>
+        <button id="clearData" class="danger" type="button">Limpiar todo</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th>Saldo inicio</th>
+              <th>Cuota mes</th>
+              <th>Total exigido</th>
+              <th>Pago</th>
+              <th>Comision secretaria</th>
+              <th>Neto usuaria</th>
+              <th>Saldo proximo mes</th>
+              <th>Accion</th>
+            </tr>
+          </thead>
+          <tbody id="paymentsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

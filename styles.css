@@ -1,0 +1,191 @@
+:root {
+  --bg: #0f1115;
+  --bg-accent-1: #1b2130;
+  --bg-accent-2: #172427;
+  --card: #171a22;
+  --text: #e8edf5;
+  --muted: #a8b1c1;
+  --primary: #2f8ca8;
+  --danger: #c54a5a;
+  --border: #2a3140;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 15% 10%, var(--bg-accent-1) 0, transparent 35%),
+    radial-gradient(circle at 85% 80%, var(--bg-accent-2) 0, transparent 30%),
+    var(--bg);
+}
+
+.app {
+  width: min(1100px, 92%);
+  margin: 2rem auto;
+  display: grid;
+  gap: 1rem;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.grid-form {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+input,
+button {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.7rem;
+  font-size: 0.95rem;
+}
+
+input {
+  background: #121622;
+  color: var(--text);
+}
+
+button {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+button.danger {
+  background: var(--danger);
+}
+
+.hint {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.totals {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+th,
+td {
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  padding: 0.55rem 0.4rem;
+  font-size: 0.92rem;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.actions-cell button {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.add-more-btn {
+  background: #3b6a4c;
+  color: #fff;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.amount-general {
+  color: #7ecbff;
+  font-weight: 700;
+}
+
+.amount-commission {
+  color: #ffb86c;
+  font-weight: 700;
+}
+
+.amount-paid {
+  color: #d4a5ff;
+  font-weight: 700;
+}
+
+.amount-net {
+  color: #8be28b;
+  font-weight: 700;
+}
+
+.negative {
+  color: #59d392;
+  font-weight: 700;
+}
+
+.positive {
+  color: #ff8a95;
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .app {
+    width: 95%;
+    margin: 1rem auto;
+  }
+}
