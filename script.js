@@ -138,11 +138,13 @@ function calculateRows() {
   return { rows, finalBalance: balance };
 }
 
-function renderSummary(finalBalance) {
+function renderSummary(finalBalance, rows) {
   const monthlyDue = state.settings.monthlyDue;
   const secretaryPercent = state.settings.secretaryPercent;
   const secretaryMonthly = monthlyDue * (secretaryPercent / 100);
   const userMonthly = monthlyDue - secretaryMonthly;
+  const lastPaidMonth = rows.length > 0 ? monthLabel(rows[rows.length - 1].month) : "Sin pagos registrados";
+  const lastPaidMonthClass = rows.length > 0 ? "month-value" : "month-value-empty";
 
   const nextRequired = Math.max(0, finalBalance + monthlyDue);
   const statusText = finalBalance > 0
@@ -150,10 +152,22 @@ function renderSummary(finalBalance) {
     : finalBalance < 0
       ? `Tiene saldo a favor de ${money(Math.abs(finalBalance))}.`
       : "Esta al dia sin saldo pendiente ni saldo a favor.";
+  const statusTone = finalBalance > 0 ? "is-warning" : finalBalance < 0 ? "is-ok" : "is-neutral";
+  const statusValueTone = finalBalance > 0 ? "status-value-due" : finalBalance < 0 ? "status-value-advance" : "status-value-ontrack";
 
   topStatus.innerHTML = `
-    <div><strong>Estado actual:</strong> ${statusText}</div>
-    <div><strong>Total exigido para el proximo mes:</strong> <span class="amount-general">${money(nextRequired)}</span></div>
+    <div class="status-line ${statusTone}">
+      <span class="status-label">Estado actual</span>
+      <span class="status-value ${statusValueTone}">${statusText}</span>
+    </div>
+    <div class="status-line is-highlight">
+      <span class="status-label">Total exigido para el proximo mes</span>
+      <span class="status-value amount-general">${money(nextRequired)}</span>
+    </div>
+    <div class="status-line is-month">
+      <span class="status-label">Ultimo mes pagado</span>
+      <span class="status-value ${lastPaidMonthClass}">${lastPaidMonth}</span>
+    </div>
   `;
 
   summary.innerHTML = `
@@ -224,7 +238,7 @@ function render() {
   secretaryPercentInput.value = state.settings.secretaryPercent;
 
   const { rows, finalBalance } = calculateRows();
-  renderSummary(finalBalance);
+  renderSummary(finalBalance, rows);
   renderTable(rows);
 }
 
