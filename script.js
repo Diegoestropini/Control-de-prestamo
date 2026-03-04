@@ -96,6 +96,21 @@ function monthLabel(monthValue) {
   return new Intl.DateTimeFormat("es", { month: "long", year: "numeric" }).format(date);
 }
 
+function monthParts(monthValue) {
+  const [year, month] = monthValue.split("-").map(Number);
+  const date = new Date(year, month - 1, 1);
+  return {
+    name: new Intl.DateTimeFormat("es", { month: "long" }).format(date),
+    year: date.getFullYear(),
+  };
+}
+
+function addOneMonth(monthValue) {
+  const [year, month] = monthValue.split("-").map(Number);
+  const date = new Date(year, month, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function calculateRows() {
   sortPayments();
   const rows = [];
@@ -145,6 +160,11 @@ function renderSummary(finalBalance, rows) {
   const userMonthly = monthlyDue - secretaryMonthly;
   const lastPaidMonth = rows.length > 0 ? monthLabel(rows[rows.length - 1].month) : "Sin pagos registrados";
   const lastPaidMonthClass = rows.length > 0 ? "month-value" : "month-value-empty";
+  const nextDueMonth = rows.length > 0 ? addOneMonth(rows[rows.length - 1].month) : null;
+  const nextDueParts = nextDueMonth ? monthParts(nextDueMonth) : null;
+  const nextDueLabel = nextDueParts
+    ? `Total exigido para <span class="next-due-month">${nextDueParts.name}</span> de ${nextDueParts.year}`
+    : "Total exigido para el proximo mes";
 
   const nextRequired = Math.max(0, finalBalance + monthlyDue);
   const statusText = finalBalance > 0
@@ -161,7 +181,7 @@ function renderSummary(finalBalance, rows) {
       <span class="status-value ${statusValueTone}">${statusText}</span>
     </div>
     <div class="status-line is-highlight">
-      <span class="status-label">Total exigido para el proximo mes</span>
+      <span class="status-label">${nextDueLabel}</span>
       <span class="status-value amount-general">${money(nextRequired)}</span>
     </div>
     <div class="status-line is-month">
