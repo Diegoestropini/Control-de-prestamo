@@ -1,35 +1,35 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Control de Prestamo</title>
+  <title>Control de Préstamo</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="app">
     <section class="top-row">
       <div class="title-block">
-        <h1>Contabilizacion de Prestamo</h1>
-        <p class="subtitle">Registra pagos por mes, calcula adelantos/atrasos y la comision de secretaria.</p>
+        <h1>Contabilización de Préstamo</h1>
+        <p class="subtitle">Registra pagos por mes, calcula adelantos/atrasos y la comisión de secretaría.</p>
       </div>
       <section class="card top-status" id="topStatus"></section>
     </section>
 
     <section class="card">
-      <h2>Configuracion</h2>
+      <h2>Configuración</h2>
       <form id="settings-form" class="grid-form">
         <label>
           Cuota mensual (USD)
           <input type="number" id="monthlyDue" min="0" step="0.01" required />
         </label>
         <label>
-          Comision secretaria (%)
+          Comisión secretaría (%)
           <input type="number" id="secretaryPercent" min="0" max="100" step="0.01" required />
         </label>
-        <button type="submit">Guardar configuracion</button>
+        <button type="submit">Guardar Configuración</button>
       </form>
-      <p class="hint">Ejemplo base: cuota 120, comision 16.6667% (equivale a 20 de cada 120).</p>
+      <p class="hint">Ejemplo base: cuota 120, comisión 16.6667% (equivale a 20 de cada 120).</p>
     </section>
 
     <section class="card">
@@ -51,7 +51,7 @@
 
     <section class="card">
       <div class="table-header">
-        <h2>Historial y calculos</h2>
+        <h2>Historial y cálculos</h2>
         <button id="clearData" class="danger" type="button">Limpiar todo</button>
       </div>
       <div class="table-wrap">
@@ -63,10 +63,10 @@
               <th>Cuota mes</th>
               <th>Total exigido</th>
               <th>Pago</th>
-              <th>Comision secretaria</th>
+              <th>Comisión secretaría</th>
               <th>Neto usuaria</th>
-              <th>Saldo proximo mes</th>
-              <th>Accion</th>
+              <th>Saldo próximo mes</th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody id="paymentsBody"></tbody>
@@ -78,3 +78,5 @@
   <script src="script.js"></script>
 </body>
 </html>
+
+

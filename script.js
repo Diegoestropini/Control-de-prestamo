@@ -1,4 +1,4 @@
-const STORAGE_KEY = "prestamo_data_v1";
+﻿const STORAGE_KEY = "prestamo_data_v1";
 
 const state = {
   settings: {
@@ -164,14 +164,14 @@ function renderSummary(finalBalance, rows) {
   const nextDueParts = nextDueMonth ? monthParts(nextDueMonth) : null;
   const nextDueLabel = nextDueParts
     ? `Total exigido para <span class="next-due-month">${nextDueParts.name}</span> de ${nextDueParts.year}`
-    : "Total exigido para el proximo mes";
+    : "Total exigido para el próximo mes";
 
   const nextRequired = Math.max(0, finalBalance + monthlyDue);
   const statusText = finalBalance > 0
     ? `Tiene atraso acumulado de ${money(finalBalance)}.`
     : finalBalance < 0
       ? `Tiene saldo a favor de ${money(Math.abs(finalBalance))}.`
-      : "Esta al dia sin saldo pendiente ni saldo a favor.";
+      : "Está al día sin saldo pendiente ni saldo a favor.";
   const statusTone = finalBalance > 0 ? "is-warning" : finalBalance < 0 ? "is-ok" : "is-neutral";
   const statusValueTone = finalBalance > 0 ? "status-value-due" : finalBalance < 0 ? "status-value-advance" : "status-value-ontrack";
 
@@ -185,21 +185,21 @@ function renderSummary(finalBalance, rows) {
       <span class="status-value amount-general">${money(nextRequired)}</span>
     </div>
     <div class="status-line is-month">
-      <span class="status-label">Ultimo mes pagado</span>
+      <span class="status-label">Último mes pagado</span>
       <span class="status-value ${lastPaidMonthClass}">${lastPaidMonth}</span>
     </div>
   `;
 
   summary.innerHTML = `
     <div><strong>Cuota mensual:</strong> <span class="amount-general">${money(monthlyDue)}</span></div>
-    <div><strong>Comision secretaria:</strong> <span class="amount-commission">${secretaryPercent.toFixed(4)}% (${money(secretaryMonthly)} por cuota base)</span></div>
+    <div><strong>Comisión secretaría:</strong> <span class="amount-commission">${secretaryPercent.toFixed(4)}% (${money(secretaryMonthly)} por cuota base)</span></div>
     <div><strong>Neto para usuaria por cuota base:</strong> <span class="amount-net">${money(userMonthly)}</span></div>
   `;
 }
 
 function renderTable(rows) {
   if (rows.length === 0) {
-    paymentsBody.innerHTML = `<tr><td colspan="9" class="muted">No hay pagos registrados todavia.</td></tr>`;
+    paymentsBody.innerHTML = `<tr><td colspan="9" class="muted">No hay pagos registrados todavía.</td></tr>`;
     return;
   }
 
@@ -242,7 +242,7 @@ function renderTable(rows) {
 
   document.querySelectorAll(".remove-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const confirmed = confirm("¿Estas seguro de que quieres eliminar este registro?");
+      const confirmed = confirm("¿Estás seguro de que quieres eliminar este registro?");
       if (!confirmed) return;
 
       const id = String(btn.dataset.id || "");
@@ -277,7 +277,7 @@ paymentForm.addEventListener("submit", (event) => {
   const amount = Math.max(0, toNumber(paymentAmountInput.value));
 
   if (!/^\d{4}-\d{2}$/.test(month)) {
-    alert("Selecciona un mes valido.");
+    alert("Selecciona un mes válido.");
     return;
   }
 
@@ -289,7 +289,7 @@ paymentForm.addEventListener("submit", (event) => {
 });
 
 clearDataBtn.addEventListener("click", () => {
-  const ok = confirm("Esto borrara toda la informacion guardada localmente. Desea continuar?");
+  const ok = confirm("Esto borrará toda la información guardada localmente. ¿Desea continuar?");
   if (!ok) return;
 
   state.settings = { monthlyDue: 120, secretaryPercent: 16.6667 };
@@ -300,3 +300,5 @@ clearDataBtn.addEventListener("click", () => {
 
 loadState();
 render();
+
+
