@@ -90,6 +90,13 @@ function addPayment(month, amount) {
   });
 }
 
+function updatePayment(id, month, amount) {
+  const payment = state.payments.find((p) => String(p.id) === String(id));
+  if (!payment) return false;
+  payment.month = month;
+  payment.amount = amount;
+  return true;
+}
 function monthLabel(monthValue) {
   const [year, month] = monthValue.split("-").map(Number);
   const date = new Date(year, month - 1, 1);
@@ -218,6 +225,7 @@ function renderTable(rows) {
           <td class="${balanceClass}">${money(row.balanceNext)}</td>
           <td class="actions-cell">
             <button type="button" data-month="${row.month}" class="add-more-btn">Agregar abono</button>
+            <button type="button" data-id="${row.id}" class="edit-btn">Editar pago</button>
             <button type="button" data-id="${row.id}" class="danger remove-btn">Eliminar</button>
           </td>
         </tr>
@@ -240,6 +248,30 @@ function renderTable(rows) {
     });
   });
 
+  document.querySelectorAll(".edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = String(btn.dataset.id || "");
+      const payment = state.payments.find((p) => String(p.id) === id);
+      if (!payment) return;
+
+      const enteredMonth = prompt("Mes del pago (AAAA-MM):", payment.month);
+      if (enteredMonth === null) return;
+      const month = enteredMonth.trim();
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        alert("Mes invalido. Usa el formato AAAA-MM.");
+        return;
+      }
+
+      const enteredAmount = prompt(`Monto para ${monthLabel(month)} (USD):`, String(payment.amount));
+      if (enteredAmount === null) return;
+      const amount = Math.max(0, toNumber(enteredAmount));
+
+      const updated = updatePayment(id, month, amount);
+      if (!updated) return;
+      saveState();
+      render();
+    });
+  });
   document.querySelectorAll(".remove-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const confirmed = confirm("¿Estas seguro de que quieres eliminar este registro?");
@@ -300,3 +332,6 @@ clearDataBtn.addEventListener("click", () => {
 
 loadState();
 render();
+
+
+
