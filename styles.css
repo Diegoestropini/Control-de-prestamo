@@ -118,7 +118,16 @@ button.danger {
   color: var(--muted);
   font-size: 0.9rem;
 }
+.backup-actions {
+  margin-top: var(--space-12);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
 
+.backup-actions button {
+  padding: var(--space-8) var(--space-12);
+}
 .totals {
   display: grid;
   gap: var(--space-8);
@@ -304,3 +313,5 @@ tr:last-child td {
     grid-template-columns: 1fr;
   }
 }
+
+

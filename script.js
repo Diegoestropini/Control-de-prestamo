@@ -1,4 +1,5 @@
 const STORAGE_KEY = "prestamo_data_v1";
+const BACKUP_VERSION = 1;
 
 const state = {
   settings: {
@@ -20,6 +21,11 @@ const secretaryPercentInput = document.getElementById("secretaryPercent");
 const paymentMonthInput = document.getElementById("paymentMonth");
 const paymentAmountInput = document.getElementById("paymentAmount");
 
+const exportJsonBtn = document.getElementById("exportJson");
+const exportCsvBtn = document.getElementById("exportCsv");
+const importDataBtn = document.getElementById("importData");
+const importFileInput = document.getElementById("importFile");
+
 function toNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -39,27 +45,46 @@ function monthDiff(fromMonth, toMonth) {
   return (toY - fromY) * 12 + (toM - fromM);
 }
 
+function normalizeStateData(parsed) {
+  const normalized = {
+    settings: {
+      monthlyDue: 120,
+      secretaryPercent: 16.6667,
+    },
+    payments: [],
+  };
+
+  if (parsed && typeof parsed === "object" && parsed.settings) {
+    normalized.settings.monthlyDue = Math.max(0, toNumber(parsed.settings.monthlyDue));
+    normalized.settings.secretaryPercent = Math.max(0, Math.min(100, toNumber(parsed.settings.secretaryPercent)));
+  }
+
+  if (parsed && typeof parsed === "object" && Array.isArray(parsed.payments)) {
+    normalized.payments = parsed.payments
+      .map((p, i) => ({
+        id: String(p.id || `legacy-${i}`),
+        month: String(p.month || ""),
+        amount: Math.max(0, toNumber(p.amount)),
+        createdAt: toNumber(p.createdAt) || Date.now() + i,
+      }))
+      .filter((p) => /^\d{4}-\d{2}$/.test(p.month));
+  }
+
+  return normalized;
+}
+
+function applyStateData(parsed) {
+  const normalized = normalizeStateData(parsed);
+  state.settings = normalized.settings;
+  state.payments = normalized.payments;
+}
+
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return;
 
   try {
-    const parsed = JSON.parse(raw);
-    if (parsed.settings) {
-      state.settings.monthlyDue = Math.max(0, toNumber(parsed.settings.monthlyDue));
-      state.settings.secretaryPercent = Math.max(0, Math.min(100, toNumber(parsed.settings.secretaryPercent)));
-    }
-
-    if (Array.isArray(parsed.payments)) {
-      state.payments = parsed.payments
-        .map((p, i) => ({
-          id: String(p.id || `legacy-${i}`),
-          month: String(p.month || ""),
-          amount: Math.max(0, toNumber(p.amount)),
-          createdAt: toNumber(p.createdAt) || i,
-        }))
-        .filter((p) => /^\d{4}-\d{2}$/.test(p.month));
-    }
+    applyStateData(JSON.parse(raw));
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -242,7 +267,7 @@ function renderTable(rows) {
 
   document.querySelectorAll(".remove-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const confirmed = confirm("¿Estas seguro de que quieres eliminar este registro?");
+      const confirmed = confirm("Estas seguro de que quieres eliminar este registro?");
       if (!confirmed) return;
 
       const id = String(btn.dataset.id || "");
@@ -251,6 +276,191 @@ function renderTable(rows) {
       render();
     });
   });
+}
+
+function getBackupPayload() {
+  return {
+    version: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    settings: {
+      monthlyDue: state.settings.monthlyDue,
+      secretaryPercent: state.settings.secretaryPercent,
+    },
+    payments: state.payments.map((p) => ({
+      id: String(p.id),
+      month: String(p.month),
+      amount: toNumber(p.amount),
+      createdAt: toNumber(p.createdAt) || Date.now(),
+    })),
+  };
+}
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  if (/[,"\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function backupToCsv(payload) {
+  const lines = [
+    "rowType,version,exportedAt,monthlyDue,secretaryPercent,id,month,amount,createdAt",
+    [
+      "settings",
+      payload.version,
+      payload.exportedAt,
+      payload.settings.monthlyDue,
+      payload.settings.secretaryPercent,
+      "",
+      "",
+      "",
+      "",
+    ].map(csvEscape).join(","),
+  ];
+
+  for (const payment of payload.payments) {
+    lines.push([
+      "payment",
+      payload.version,
+      payload.exportedAt,
+      "",
+      "",
+      payment.id,
+      payment.month,
+      payment.amount,
+      payment.createdAt,
+    ].map(csvEscape).join(","));
+  }
+
+  return lines.join("\n");
+}
+
+function parseCsvLine(line) {
+  const cells = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        cell += '"';
+        i += 1;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+
+    if (ch === ',') {
+      cells.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+
+    cell += ch;
+  }
+
+  cells.push(cell);
+  return cells;
+}
+
+function csvToBackupObject(text) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length < 2) {
+    throw new Error("El CSV esta vacio o incompleto.");
+  }
+
+  const header = parseCsvLine(lines[0]);
+  const expectedHeader = ["rowType", "version", "exportedAt", "monthlyDue", "secretaryPercent", "id", "month", "amount", "createdAt"];
+  if (header.join("|") !== expectedHeader.join("|")) {
+    throw new Error("Formato CSV no compatible.");
+  }
+
+  let settings = null;
+  const payments = [];
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const [rowType, version, exportedAt, monthlyDue, secretaryPercent, id, month, amount, createdAt] = parseCsvLine(lines[i]);
+
+    if (rowType === "settings") {
+      settings = {
+        monthlyDue: toNumber(monthlyDue),
+        secretaryPercent: toNumber(secretaryPercent),
+      };
+      continue;
+    }
+
+    if (rowType === "payment") {
+      payments.push({
+        id: id || `imported-${i}`,
+        month: month || "",
+        amount: toNumber(amount),
+        createdAt: toNumber(createdAt) || Date.now() + i,
+      });
+      continue;
+    }
+
+    if (rowType || version || exportedAt || monthlyDue || secretaryPercent || id || month || amount || createdAt) {
+      throw new Error("El CSV contiene filas no reconocidas.");
+    }
+  }
+
+  return {
+    settings,
+    payments,
+  };
+}
+
+function downloadTextFile(content, fileName, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function handleImportFile(file) {
+  const fileName = String(file.name || "");
+  const lowerName = fileName.toLowerCase();
+  const text = await file.text();
+
+  let parsed;
+  try {
+    if (lowerName.endsWith(".csv")) {
+      parsed = csvToBackupObject(text);
+    } else {
+      parsed = JSON.parse(text);
+    }
+
+    const ok = confirm("Se reemplazaran los datos actuales con el respaldo importado. Desea continuar?");
+    if (!ok) return;
+
+    applyStateData(parsed);
+    saveState();
+    render();
+    alert("Respaldo importado correctamente.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo importar el archivo.";
+    alert(`Error al importar: ${message}`);
+  }
 }
 
 function render() {
@@ -296,6 +506,31 @@ clearDataBtn.addEventListener("click", () => {
   state.payments = [];
   saveState();
   render();
+});
+
+exportJsonBtn.addEventListener("click", () => {
+  const payload = getBackupPayload();
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadTextFile(JSON.stringify(payload, null, 2), `prestamo-backup-${stamp}.json`, "application/json;charset=utf-8");
+});
+
+exportCsvBtn.addEventListener("click", () => {
+  const payload = getBackupPayload();
+  const csv = backupToCsv(payload);
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadTextFile(csv, `prestamo-backup-${stamp}.csv`, "text/csv;charset=utf-8");
+});
+
+importDataBtn.addEventListener("click", () => {
+  importFileInput.click();
+});
+
+importFileInput.addEventListener("change", async () => {
+  const [file] = importFileInput.files || [];
+  if (!file) return;
+
+  await handleImportFile(file);
+  importFileInput.value = "";
 });
 
 loadState();

@@ -30,6 +30,12 @@
         <button type="submit">Guardar configuracion</button>
       </form>
       <p class="hint">Ejemplo base: cuota 120, comision 16.6667% (equivale a 20 de cada 120).</p>
+      <div class="backup-actions">
+        <button id="exportJson" type="button">Exportar JSON</button>
+        <button id="exportCsv" type="button">Exportar CSV</button>
+        <button id="importData" type="button">Importar respaldo</button>
+        <input id="importFile" type="file" accept=".json,.csv,application/json,text/csv" hidden />
+      </div>
     </section>
 
     <section class="card">
