@@ -143,6 +143,11 @@ function addOneMonth(monthValue) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getCurrentMonthValue() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function calculateRows() {
   sortPayments();
   const rows = [];
@@ -192,13 +197,23 @@ function renderSummary(finalBalance, rows) {
   const userMonthly = monthlyDue - secretaryMonthly;
   const lastPaidMonth = rows.length > 0 ? monthLabel(rows[rows.length - 1].month) : "Sin pagos registrados";
   const lastPaidMonthClass = rows.length > 0 ? "month-value" : "month-value-empty";
-  const nextDueMonth = rows.length > 0 ? addOneMonth(rows[rows.length - 1].month) : null;
-  const nextDueParts = nextDueMonth ? monthParts(nextDueMonth) : null;
-  const nextDueLabel = nextDueParts
-    ? `Total exigido para <span class="next-due-month">${nextDueParts.name}</span> de ${nextDueParts.year}`
-    : "Total exigido para el proximo mes";
+  const currentMonth = getCurrentMonthValue();
+  const currentMonthInfo = monthParts(currentMonth);
+  const currentDueLabel = `Total exigido para <span class="next-due-month">${currentMonthInfo.name}</span> de ${currentMonthInfo.year}`;
 
-  const nextRequired = Math.max(0, finalBalance + monthlyDue);
+  let currentRequired = monthlyDue;
+  if (rows.length > 0) {
+    const lastRecordedMonth = rows[rows.length - 1].month;
+    const monthsSinceLastRecord = monthDiff(lastRecordedMonth, currentMonth);
+
+    if (monthsSinceLastRecord > 0) {
+      currentRequired = finalBalance + (monthsSinceLastRecord * monthlyDue);
+    } else {
+      currentRequired = finalBalance;
+    }
+  }
+
+  currentRequired = Math.max(0, currentRequired);
   const statusText = finalBalance > 0
     ? `Tiene atraso acumulado de ${money(finalBalance)}.`
     : finalBalance < 0
@@ -213,8 +228,8 @@ function renderSummary(finalBalance, rows) {
       <span class="status-value ${statusValueTone}">${statusText}</span>
     </div>
     <div class="status-line is-highlight">
-      <span class="status-label">${nextDueLabel}</span>
-      <span class="status-value amount-general">${money(nextRequired)}</span>
+      <span class="status-label">${currentDueLabel}</span>
+      <span class="status-value amount-general">${money(currentRequired)}</span>
     </div>
     <div class="status-line is-month">
       <span class="status-label">Ultimo mes pagado</span>
