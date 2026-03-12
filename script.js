@@ -45,6 +45,50 @@ function monthDiff(fromMonth, toMonth) {
   return (toY - fromY) * 12 + (toM - fromM);
 }
 
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function validateImportData(parsed) {
+  if (!isObject(parsed)) {
+    throw new Error("El respaldo debe ser un objeto JSON valido.");
+  }
+
+  if (!isObject(parsed.settings)) {
+    throw new Error("El respaldo no incluye configuracion valida.");
+  }
+
+  if (!Array.isArray(parsed.payments)) {
+    throw new Error("El respaldo no incluye la lista de pagos.");
+  }
+
+  if (!Number.isFinite(Number(parsed.settings.monthlyDue))) {
+    throw new Error("La cuota mensual del respaldo no es valida.");
+  }
+
+  if (!Number.isFinite(Number(parsed.settings.secretaryPercent))) {
+    throw new Error("La comision de secretaria del respaldo no es valida.");
+  }
+
+  for (const payment of parsed.payments) {
+    if (!isObject(payment)) {
+      throw new Error("El respaldo contiene pagos con formato invalido.");
+    }
+
+    if (!/^\d{4}-\d{2}$/.test(String(payment.month || ""))) {
+      throw new Error("El respaldo contiene meses de pago invalidos.");
+    }
+
+    if (!Number.isFinite(Number(payment.amount))) {
+      throw new Error("El respaldo contiene montos de pago invalidos.");
+    }
+
+    if (payment.createdAt !== undefined && !Number.isFinite(Number(payment.createdAt))) {
+      throw new Error("El respaldo contiene fechas de registro invalidas.");
+    }
+  }
+}
+
 function normalizeStateData(parsed) {
   const normalized = {
     settings: {
@@ -496,6 +540,8 @@ async function handleImportFile(file) {
     } else {
       parsed = JSON.parse(text);
     }
+
+    validateImportData(parsed);
 
     const ok = confirm("Se reemplazaran los datos actuales con el respaldo importado. Desea continuar?");
     if (!ok) return;
