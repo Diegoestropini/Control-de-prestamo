@@ -7,6 +7,7 @@ const state = {
     secretaryPercent: 16.6667,
   },
   payments: [],
+  showFullHistory: false,
 };
 
 const settingsForm = document.getElementById("settings-form");
@@ -15,6 +16,7 @@ const paymentsBody = document.getElementById("paymentsBody");
 const summary = document.getElementById("summary");
 const topStatus = document.getElementById("topStatus");
 const clearDataBtn = document.getElementById("clearData");
+const historyToggleBtn = document.getElementById("historyToggle");
 
 const monthlyDueInput = document.getElementById("monthlyDue");
 const secretaryPercentInput = document.getElementById("secretaryPercent");
@@ -330,11 +332,19 @@ function renderSummary(finalBalance, rows) {
 
 function renderTable(rows) {
   if (rows.length === 0) {
+    historyToggleBtn.hidden = true;
     paymentsBody.innerHTML = `<tr><td colspan="9" class="muted">No hay pagos registrados todavia.</td></tr>`;
     return;
   }
 
-  paymentsBody.innerHTML = rows
+  const reversedRows = [...rows].reverse();
+  const hasHiddenRows = reversedRows.length > 3;
+  const visibleRows = state.showFullHistory ? reversedRows : reversedRows.slice(0, 3);
+
+  historyToggleBtn.hidden = !hasHiddenRows;
+  historyToggleBtn.textContent = state.showFullHistory ? "Ver menos" : "Ver mas";
+
+  paymentsBody.innerHTML = visibleRows
     .map((row) => {
       const balanceClass = row.balanceNext > 0 ? "positive" : row.balanceNext < 0 ? "negative" : "";
       return `
@@ -660,12 +670,18 @@ paymentForm.addEventListener("submit", (event) => {
   paymentAmountInput.value = "";
 });
 
+historyToggleBtn.addEventListener("click", () => {
+  state.showFullHistory = !state.showFullHistory;
+  render();
+});
+
 clearDataBtn.addEventListener("click", () => {
   const ok = confirm("Esto borrara toda la informacion guardada localmente. Desea continuar?");
   if (!ok) return;
 
   state.settings = { monthlyDue: 120, secretaryPercent: 16.6667 };
   state.payments = [];
+  state.showFullHistory = false;
   saveState();
   render();
 });
