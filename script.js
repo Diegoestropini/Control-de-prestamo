@@ -31,6 +31,44 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function isValidMonthString(value) {
+  const match = /^(\d{4})-(\d{2})$/.exec(String(value || "").trim());
+  if (!match) return false;
+
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12;
+}
+
+function normalizeMonthString(value) {
+  return String(value || "").trim();
+}
+
+function parseStrictAmount(value) {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error("El monto debe ser un numero valido mayor o igual a 0.");
+    }
+    return value;
+  }
+
+  const text = String(value ?? "").trim();
+  if (text === "") {
+    throw new Error("El monto es obligatorio.");
+  }
+
+  const normalized = text.replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new Error("El monto debe ser un numero valido mayor o igual a 0.");
+  }
+
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("El monto debe ser un numero valido mayor o igual a 0.");
+  }
+
+  return amount;
+}
+
 function money(value) {
   return new Intl.NumberFormat("es-DO", {
     style: "currency",
@@ -75,11 +113,13 @@ function validateImportData(parsed) {
       throw new Error("El respaldo contiene pagos con formato invalido.");
     }
 
-    if (!/^\d{4}-\d{2}$/.test(String(payment.month || ""))) {
+    if (!isValidMonthString(payment.month)) {
       throw new Error("El respaldo contiene meses de pago invalidos.");
     }
 
-    if (!Number.isFinite(Number(payment.amount))) {
+    try {
+      parseStrictAmount(payment.amount);
+    } catch {
       throw new Error("El respaldo contiene montos de pago invalidos.");
     }
 
@@ -107,11 +147,11 @@ function normalizeStateData(parsed) {
     normalized.payments = parsed.payments
       .map((p, i) => ({
         id: String(p.id || `legacy-${i}`),
-        month: String(p.month || ""),
-        amount: Math.max(0, toNumber(p.amount)),
+        month: normalizeMonthString(p.month),
+        amount: parseStrictAmount(p.amount),
         createdAt: toNumber(p.createdAt) || Date.now() + i,
       }))
-      .filter((p) => /^\d{4}-\d{2}$/.test(p.month));
+      .filter((p) => isValidMonthString(p.month));
   }
 
   return normalized;
@@ -320,12 +360,20 @@ function renderTable(rows) {
   document.querySelectorAll(".add-more-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const month = String(btn.dataset.month || "");
-      if (!/^\d{4}-\d{2}$/.test(month)) return;
+      if (!isValidMonthString(month)) return;
 
       const entered = prompt(`Monto adicional para ${monthLabel(month)} (USD):`, "0");
       if (entered === null) return;
 
-      const amount = Math.max(0, toNumber(entered));
+      let amount;
+      try {
+        amount = parseStrictAmount(entered);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Monto invalido.";
+        alert(message);
+        return;
+      }
+
       addPayment(month, amount);
       saveState();
       render();
@@ -340,15 +388,22 @@ function renderTable(rows) {
 
       const enteredMonth = prompt("Mes del pago (AAAA-MM):", payment.month);
       if (enteredMonth === null) return;
-      const month = enteredMonth.trim();
-      if (!/^\d{4}-\d{2}$/.test(month)) {
+      const month = normalizeMonthString(enteredMonth);
+      if (!isValidMonthString(month)) {
         alert("Mes invalido. Usa el formato AAAA-MM.");
         return;
       }
 
       const enteredAmount = prompt(`Monto para ${monthLabel(month)} (USD):`, String(payment.amount));
       if (enteredAmount === null) return;
-      const amount = Math.max(0, toNumber(enteredAmount));
+      let amount;
+      try {
+        amount = parseStrictAmount(enteredAmount);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Monto invalido.";
+        alert(message);
+        return;
+      }
 
       const updated = updatePayment(id, month, amount);
       if (!updated) return;
@@ -498,8 +553,8 @@ function csvToBackupObject(text) {
     if (rowType === "payment") {
       payments.push({
         id: id || `imported-${i}`,
-        month: month || "",
-        amount: toNumber(amount),
+        month: normalizeMonthString(month),
+        amount: parseStrictAmount(amount),
         createdAt: toNumber(createdAt) || Date.now() + i,
       });
       continue;
@@ -567,7 +622,14 @@ function render() {
 
 settingsForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  state.settings.monthlyDue = Math.max(0, toNumber(monthlyDueInput.value));
+  try {
+    state.settings.monthlyDue = parseStrictAmount(monthlyDueInput.value);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Cuota mensual invalida.";
+    alert(message);
+    return;
+  }
+
   state.settings.secretaryPercent = Math.max(0, Math.min(100, toNumber(secretaryPercentInput.value)));
   saveState();
   render();
@@ -576,10 +638,17 @@ settingsForm.addEventListener("submit", (event) => {
 paymentForm.addEventListener("submit", (event) => {
   event.preventDefault();
 
-  const month = paymentMonthInput.value;
-  const amount = Math.max(0, toNumber(paymentAmountInput.value));
+  const month = normalizeMonthString(paymentMonthInput.value);
+  let amount;
+  try {
+    amount = parseStrictAmount(paymentAmountInput.value);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Monto invalido.";
+    alert(message);
+    return;
+  }
 
-  if (!/^\d{4}-\d{2}$/.test(month)) {
+  if (!isValidMonthString(month)) {
     alert("Selecciona un mes valido.");
     return;
   }
