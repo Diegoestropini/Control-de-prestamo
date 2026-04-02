@@ -234,6 +234,49 @@ function getCurrentMonthValue() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getBalanceAtMonth(finalBalance, rows, targetMonth) {
+  const monthlyDue = state.settings.monthlyDue;
+  if (rows.length === 0) {
+    return monthlyDue;
+  }
+
+  const lastRecordedMonth = rows[rows.length - 1].month;
+  const monthsSinceLastRecord = monthDiff(lastRecordedMonth, targetMonth);
+
+  if (monthsSinceLastRecord > 0) {
+    return finalBalance + (monthsSinceLastRecord * monthlyDue);
+  }
+
+  return finalBalance;
+}
+
+function getLastCoveredMonth(rows) {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const monthlyDue = state.settings.monthlyDue;
+  if (monthlyDue <= 0) {
+    return getCurrentMonthValue();
+  }
+
+  const firstMonth = rows[0].month;
+  const totalPaid = rows.reduce((sum, row) => sum + row.paid, 0);
+
+  if (totalPaid <= 0) {
+    return null;
+  }
+
+  const coveredMonths = Math.floor(totalPaid / monthlyDue);
+  if (coveredMonths <= 0) {
+    return null;
+  }
+
+  const [startYear, startMonth] = firstMonth.split("-").map(Number);
+  const coveredDate = new Date(startYear, startMonth - 1 + coveredMonths - 1, 1);
+  return `${coveredDate.getFullYear()}-${String(coveredDate.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function calculateRows() {
   sortPayments();
   const rows = [];
@@ -281,32 +324,21 @@ function renderSummary(finalBalance, rows) {
   const secretaryPercent = state.settings.secretaryPercent;
   const secretaryMonthly = monthlyDue * (secretaryPercent / 100);
   const userMonthly = monthlyDue - secretaryMonthly;
-  const lastPaidMonth = rows.length > 0 ? monthLabel(rows[rows.length - 1].month) : "Sin pagos registrados";
-  const lastPaidMonthClass = rows.length > 0 ? "month-value" : "month-value-empty";
   const currentMonth = getCurrentMonthValue();
   const currentMonthInfo = monthParts(currentMonth);
   const currentDueLabel = `Total exigido para <span class="next-due-month">${currentMonthInfo.name}</span> de ${currentMonthInfo.year}`;
+  const currentBalance = Math.max(0, getBalanceAtMonth(finalBalance, rows, currentMonth));
+  const lastCoveredMonthValue = getLastCoveredMonth(rows);
+  const lastCoveredMonth = lastCoveredMonthValue ? monthLabel(lastCoveredMonthValue) : "Ningun mes totalmente cubierto";
+  const lastCoveredMonthClass = lastCoveredMonthValue ? "month-value" : "month-value-empty";
 
-  let currentRequired = monthlyDue;
-  if (rows.length > 0) {
-    const lastRecordedMonth = rows[rows.length - 1].month;
-    const monthsSinceLastRecord = monthDiff(lastRecordedMonth, currentMonth);
-
-    if (monthsSinceLastRecord > 0) {
-      currentRequired = finalBalance + (monthsSinceLastRecord * monthlyDue);
-    } else {
-      currentRequired = finalBalance;
-    }
-  }
-
-  currentRequired = Math.max(0, currentRequired);
-  const statusText = finalBalance > 0
-    ? `Tiene atraso acumulado de ${money(finalBalance)}.`
+  const statusText = currentBalance > 0
+    ? `Tiene atraso acumulado de ${money(currentBalance)} al mes actual.`
     : finalBalance < 0
       ? `Tiene saldo a favor de ${money(Math.abs(finalBalance))}.`
       : "Esta al dia sin saldo pendiente ni saldo a favor.";
-  const statusTone = finalBalance > 0 ? "is-warning" : finalBalance < 0 ? "is-ok" : "is-neutral";
-  const statusValueTone = finalBalance > 0 ? "status-value-due" : finalBalance < 0 ? "status-value-advance" : "status-value-ontrack";
+  const statusTone = currentBalance > 0 ? "is-warning" : finalBalance < 0 ? "is-ok" : "is-neutral";
+  const statusValueTone = currentBalance > 0 ? "status-value-due" : finalBalance < 0 ? "status-value-advance" : "status-value-ontrack";
 
   topStatus.innerHTML = `
     <div class="status-line ${statusTone}">
@@ -315,11 +347,11 @@ function renderSummary(finalBalance, rows) {
     </div>
     <div class="status-line is-highlight">
       <span class="status-label">${currentDueLabel}</span>
-      <span class="status-value amount-general">${money(currentRequired)}</span>
+      <span class="status-value amount-general">${money(currentBalance)}</span>
     </div>
     <div class="status-line is-month">
-      <span class="status-label">Ultimo mes pagado</span>
-      <span class="status-value ${lastPaidMonthClass}">${lastPaidMonth}</span>
+      <span class="status-label">Ultimo mes totalmente cubierto</span>
+      <span class="status-value ${lastCoveredMonthClass}">${lastCoveredMonth}</span>
     </div>
   `;
 
