@@ -234,20 +234,55 @@ function getCurrentMonthValue() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function getBalanceAtMonth(finalBalance, rows, targetMonth) {
+function getMonthlyClosings(rows) {
+  const closings = [];
+
+  for (const row of rows) {
+    const lastClosing = closings[closings.length - 1];
+    if (lastClosing && lastClosing.month === row.month) {
+      lastClosing.balanceNext = row.balanceNext;
+      continue;
+    }
+
+    closings.push({
+      month: row.month,
+      balanceNext: row.balanceNext,
+    });
+  }
+
+  return closings;
+}
+
+function getBalanceAtMonth(rows, targetMonth) {
   const monthlyDue = state.settings.monthlyDue;
-  if (rows.length === 0) {
+  const closings = getMonthlyClosings(rows);
+
+  if (closings.length === 0) {
     return monthlyDue;
   }
 
-  const lastRecordedMonth = rows[rows.length - 1].month;
-  const monthsSinceLastRecord = monthDiff(lastRecordedMonth, targetMonth);
-
-  if (monthsSinceLastRecord > 0) {
-    return finalBalance + (monthsSinceLastRecord * monthlyDue);
+  const firstRecordedMonth = closings[0].month;
+  if (targetMonth < firstRecordedMonth) {
+    return monthlyDue;
   }
 
-  return finalBalance;
+  let lastClosingBeforeTarget = null;
+  for (const closing of closings) {
+    if (closing.month > targetMonth) {
+      break;
+    }
+    lastClosingBeforeTarget = closing;
+  }
+
+  if (!lastClosingBeforeTarget) {
+    return monthlyDue;
+  }
+
+  if (lastClosingBeforeTarget.month === targetMonth) {
+    return lastClosingBeforeTarget.balanceNext;
+  }
+
+  return lastClosingBeforeTarget.balanceNext + (monthDiff(lastClosingBeforeTarget.month, targetMonth) * monthlyDue);
 }
 
 function getLastCoveredMonth(rows) {
@@ -260,21 +295,43 @@ function getLastCoveredMonth(rows) {
     return getCurrentMonthValue();
   }
 
-  const firstMonth = rows[0].month;
-  const totalPaid = rows.reduce((sum, row) => sum + row.paid, 0);
+  const closings = getMonthlyClosings(rows);
+  let lastCoveredMonth = null;
+  let previousMonth = null;
+  let previousBalance = 0;
 
-  if (totalPaid <= 0) {
+  for (const closing of closings) {
+    if (previousMonth) {
+      let cursor = addOneMonth(previousMonth);
+      while (cursor < closing.month) {
+        previousBalance += monthlyDue;
+        if (previousBalance <= 0) {
+          lastCoveredMonth = cursor;
+        }
+        previousMonth = cursor;
+        cursor = addOneMonth(cursor);
+      }
+    }
+
+    previousBalance = closing.balanceNext;
+    if (previousBalance <= 0) {
+      lastCoveredMonth = closing.month;
+    }
+    previousMonth = closing.month;
+  }
+
+  if (!previousMonth) {
     return null;
   }
 
-  const coveredMonths = Math.floor(totalPaid / monthlyDue);
-  if (coveredMonths <= 0) {
-    return null;
+  let cursor = addOneMonth(previousMonth);
+  while (previousBalance + monthlyDue <= 0) {
+    previousBalance += monthlyDue;
+    lastCoveredMonth = cursor;
+    cursor = addOneMonth(cursor);
   }
 
-  const [startYear, startMonth] = firstMonth.split("-").map(Number);
-  const coveredDate = new Date(startYear, startMonth - 1 + coveredMonths - 1, 1);
-  return `${coveredDate.getFullYear()}-${String(coveredDate.getMonth() + 1).padStart(2, "0")}`;
+  return lastCoveredMonth;
 }
 
 function calculateRows() {
@@ -327,7 +384,7 @@ function renderSummary(finalBalance, rows) {
   const currentMonth = getCurrentMonthValue();
   const currentMonthInfo = monthParts(currentMonth);
   const currentDueLabel = `Total exigido para <span class="next-due-month">${currentMonthInfo.name}</span> de ${currentMonthInfo.year}`;
-  const currentBalance = Math.max(0, getBalanceAtMonth(finalBalance, rows, currentMonth));
+  const currentBalance = Math.max(0, getBalanceAtMonth(rows, currentMonth));
   const lastCoveredMonthValue = getLastCoveredMonth(rows);
   const lastCoveredMonth = lastCoveredMonthValue ? monthLabel(lastCoveredMonthValue) : "Ningun mes totalmente cubierto";
   const lastCoveredMonthClass = lastCoveredMonthValue ? "month-value" : "month-value-empty";
