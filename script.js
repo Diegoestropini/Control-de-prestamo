@@ -1,5 +1,7 @@
 const STORAGE_KEY = "prestamo_data_v1";
 const BACKUP_VERSION = 1;
+const MAX_IMPORT_FILE_BYTES = 1024 * 1024;
+const MAX_IMPORT_PAYMENTS = 5000;
 
 const state = {
   settings: {
@@ -89,6 +91,15 @@ function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function makePaymentId(prefix = "payment") {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizePaymentId(value, fallbackIndex) {
+  const id = String(value || "").trim();
+  return /^[A-Za-z0-9_-]{1,80}$/.test(id) ? id : makePaymentId(`imported-${fallbackIndex}`);
+}
+
 function validateImportData(parsed) {
   if (!isObject(parsed)) {
     throw new Error("El respaldo debe ser un objeto JSON valido.");
@@ -100,6 +111,10 @@ function validateImportData(parsed) {
 
   if (!Array.isArray(parsed.payments)) {
     throw new Error("El respaldo no incluye la lista de pagos.");
+  }
+
+  if (parsed.payments.length > MAX_IMPORT_PAYMENTS) {
+    throw new Error(`El respaldo supera el limite de ${MAX_IMPORT_PAYMENTS} pagos.`);
   }
 
   if (!Number.isFinite(Number(parsed.settings.monthlyDue))) {
@@ -148,7 +163,7 @@ function normalizeStateData(parsed) {
   if (parsed && typeof parsed === "object" && Array.isArray(parsed.payments)) {
     normalized.payments = parsed.payments
       .map((p, i) => ({
-        id: String(p.id || `legacy-${i}`),
+        id: normalizePaymentId(p.id, i),
         month: normalizeMonthString(p.month),
         amount: parseStrictAmount(p.amount),
         createdAt: toNumber(p.createdAt) || Date.now() + i,
@@ -194,7 +209,7 @@ function sortPayments() {
 
 function addPayment(month, amount) {
   state.payments.push({
-    id: String(Date.now()) + Math.random().toString(16).slice(2),
+    id: makePaymentId(),
     month,
     amount,
     createdAt: Date.now(),
@@ -685,6 +700,12 @@ function downloadTextFile(content, fileName, mimeType) {
 async function handleImportFile(file) {
   const fileName = String(file.name || "");
   const lowerName = fileName.toLowerCase();
+
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    alert("El respaldo es demasiado grande. El limite es 1 MB.");
+    return;
+  }
+
   const text = await file.text();
 
   let parsed;
