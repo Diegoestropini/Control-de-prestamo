@@ -3,19 +3,25 @@
   --bg-accent-1: #1b2130;
   --bg-accent-2: #172427;
   --card: #171a22;
+  --card-soft: rgba(23, 26, 34, 0.88);
   --text: #e8edf5;
   --muted: #a8b1c1;
   --primary: #2f8ca8;
+  --primary-strong: #59d6ff;
+  --primary-soft: rgba(89, 214, 255, 0.14);
   --danger: #c54a5a;
   --border: #2a3140;
+  --border-soft: rgba(255, 255, 255, 0.06);
   --space-8: 8px;
   --space-12: 12px;
   --space-16: 16px;
   --space-24: 24px;
+  --space-32: 32px;
   --radius-10: 10px;
   --radius-12: 12px;
-  --shadow-card: 0 6px 16px rgba(0, 0, 0, 0.2);
-  --shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.14);
+  --radius-18: 18px;
+  --shadow-card: 0 18px 38px rgba(0, 0, 0, 0.28);
+  --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
 * {
@@ -30,26 +36,28 @@ body {
     radial-gradient(circle at 15% 10%, var(--bg-accent-1) 0, transparent 35%),
     radial-gradient(circle at 85% 80%, var(--bg-accent-2) 0, transparent 30%),
     var(--bg);
+  min-height: 100vh;
 }
 
 .app {
   width: min(1100px, 92%);
-  margin: var(--space-24) auto;
+  margin: var(--space-32) auto;
   display: grid;
-  gap: var(--space-16);
+  gap: 20px;
 }
 
 .top-row {
   display: grid;
-  gap: var(--space-16);
-  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
   align-items: stretch;
 }
 
 .title-block {
   display: grid;
-  gap: var(--space-8);
+  gap: 10px;
   align-content: start;
+  padding: 12px 4px 0;
 }
 
 h1,
@@ -57,56 +65,101 @@ h2 {
   margin: 0;
 }
 
+h1 {
+  font-size: clamp(2rem, 4vw, 3.3rem);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  max-width: 12ch;
+}
+
+h2 {
+  font-size: 1.08rem;
+  letter-spacing: 0.01em;
+}
+
 .subtitle {
   margin: 0;
   color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  max-width: 58ch;
+  opacity: 0.84;
 }
 
 .card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-12);
-  padding: var(--space-16);
+  background: linear-gradient(180deg, rgba(25, 29, 39, 0.96), rgba(20, 24, 33, 0.92));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-18);
+  padding: 20px;
   box-shadow: var(--shadow-card);
+  backdrop-filter: blur(10px);
 }
 
 .grid-form {
   display: grid;
-  gap: var(--space-12);
+  gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   align-items: end;
+  margin-top: 14px;
 }
 
 label {
   display: grid;
   gap: var(--space-8);
   font-weight: 600;
+  color: #dfe7f2;
 }
 
 input,
 button {
-  border-radius: var(--radius-10);
+  border-radius: 14px;
   border: 1px solid var(--border);
   padding: var(--space-12);
   font-size: 0.95rem;
 }
 
 input {
-  background: #121622;
+  background: linear-gradient(180deg, rgba(14, 18, 29, 0.98), rgba(18, 22, 34, 0.88));
   color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+input:hover {
+  border-color: rgba(126, 203, 255, 0.28);
+  background: linear-gradient(180deg, rgba(16, 21, 33, 1), rgba(19, 24, 37, 0.9));
+}
+
+input:focus {
+  outline: none;
+  border-color: rgba(89, 214, 255, 0.72);
+  box-shadow:
+    0 0 0 4px rgba(89, 214, 255, 0.14),
+    0 10px 24px rgba(12, 41, 51, 0.24);
 }
 
 button {
-  background: var(--primary);
+  background: linear-gradient(135deg, #2d8aa6, #45b9d2);
   color: #fff;
   border: none;
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.2s ease;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 22px rgba(24, 91, 109, 0.24);
+  transition: transform 0.15s ease, opacity 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 button:hover {
   transform: translateY(-1px);
-  opacity: 0.95;
+  filter: brightness(1.05);
+  box-shadow: 0 14px 28px rgba(24, 91, 109, 0.3);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 4px rgba(89, 214, 255, 0.18),
+    0 14px 28px rgba(24, 91, 109, 0.3);
 }
 
 button.danger {
@@ -119,49 +172,67 @@ button.danger {
   font-size: 0.9rem;
 }
 .backup-actions {
-  margin-top: var(--space-12);
+  margin-top: 14px;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-8);
 }
 
 .backup-actions button {
-  padding: var(--space-8) var(--space-12);
+  padding: 10px 14px;
 }
 .totals {
   display: grid;
-  gap: var(--space-8);
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 
 .top-status {
   display: grid;
   gap: var(--space-12);
-  align-content: center;
-  background: linear-gradient(140deg, rgba(56, 76, 115, 0.28), rgba(28, 51, 61, 0.35));
-  border: 1px solid rgba(126, 203, 255, 0.25);
+  align-content: start;
+  padding: 22px;
+  background:
+    linear-gradient(150deg, rgba(33, 56, 83, 0.9), rgba(18, 38, 47, 0.92)),
+    radial-gradient(circle at top right, rgba(126, 203, 255, 0.18), transparent 38%);
+  border: 1px solid rgba(126, 203, 255, 0.22);
+  box-shadow:
+    0 18px 36px rgba(5, 17, 24, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .status-line {
   display: grid;
-  gap: var(--space-8);
-  padding: var(--space-8) var(--space-12);
-  border-radius: var(--radius-10);
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .status-label {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
   color: #b4bfd1;
   font-weight: 700;
 }
 
+.status-line-primary .status-value {
+  font-size: clamp(1.1rem, 2vw, 1.42rem);
+}
+
+.status-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e5f9ff;
+  font-size: 0.9rem;
+}
+
 .next-due-month {
   display: inline-block;
-  margin: 0 var(--space-8);
-  padding: var(--space-8) var(--space-12);
+  padding: 6px 12px;
   border-radius: 999px;
   text-transform: none;
   letter-spacing: 0.01em;
@@ -228,7 +299,7 @@ button.danger {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  margin-bottom: var(--space-12);
+  margin-bottom: 14px;
 }
 
 .history-title {
@@ -280,40 +351,120 @@ button.danger {
 
 .table-wrap {
   overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(10, 14, 23, 0.28);
 }
 
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   min-width: 900px;
 }
 
 th,
 td {
   text-align: left;
-  border-bottom: 1px solid var(--border);
-  padding: var(--space-8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 14px 16px;
   font-size: 0.92rem;
+  vertical-align: middle;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(17, 22, 32, 0.96);
+  color: #d8e9f8;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  backdrop-filter: blur(10px);
+}
+
+tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.036);
+}
+
+tbody tr:hover {
+  background: rgba(89, 214, 255, 0.08);
 }
 
 tr:last-child td {
   border-bottom: none;
 }
 
+.cell-month {
+  font-weight: 700;
+  color: #edf4ff;
+}
+
+.cell-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .actions-cell {
   display: flex;
   gap: var(--space-8);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  min-width: 220px;
 }
 
 .actions-cell button {
-  padding: var(--space-8) var(--space-12);
+  padding: 8px 11px;
   font-size: 0.82rem;
   white-space: nowrap;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.actions-cell button:hover {
+  box-shadow: none;
+}
+
+.edit-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e5eef9;
+}
+
+.edit-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .add-more-btn {
-  background: #3b6a4c;
+  background: rgba(94, 191, 132, 0.12);
+  color: #a9efbf;
+  border-color: rgba(108, 212, 148, 0.22);
+}
+
+.add-more-btn:hover {
+  background: rgba(94, 191, 132, 0.18);
+  border-color: rgba(108, 212, 148, 0.34);
   color: #fff;
+}
+
+.remove-btn {
+  background: rgba(197, 74, 90, 0.12);
+  color: #ffb8c1;
+  border-color: rgba(197, 74, 90, 0.22);
+}
+
+.remove-btn:hover {
+  background: rgba(197, 74, 90, 0.18);
+  border-color: rgba(197, 74, 90, 0.34);
 }
 
 .muted {
@@ -350,6 +501,64 @@ tr:last-child td {
   font-weight: 700;
 }
 
+.metric-card {
+  display: grid;
+  gap: 8px;
+  min-height: 148px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(26, 31, 44, 0.96), rgba(16, 20, 30, 0.94)),
+    rgba(255, 255, 255, 0.02);
+  box-shadow: var(--shadow-soft);
+}
+
+.metric-card-balance {
+  background:
+    linear-gradient(180deg, rgba(28, 38, 58, 0.98), rgba(17, 24, 35, 0.94)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.metric-card-month {
+  background:
+    linear-gradient(180deg, rgba(24, 40, 44, 0.98), rgba(16, 23, 29, 0.94)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.metric-card-paid {
+  background:
+    linear-gradient(180deg, rgba(37, 29, 57, 0.98), rgba(19, 18, 32, 0.94)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.metric-card-commission {
+  background:
+    linear-gradient(180deg, rgba(53, 36, 22, 0.98), rgba(28, 22, 18, 0.94)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #aebcd0;
+  font-weight: 800;
+}
+
+.metric-value {
+  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+.metric-note {
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
 @media (max-width: 680px) {
   .app {
     width: 95%;
@@ -371,6 +580,29 @@ tr:last-child td {
 
   .table-actions button {
     flex: 1 1 160px;
+    justify-content: center;
+  }
+
+  h1 {
+    max-width: none;
+  }
+
+  .metric-card {
+    min-height: auto;
+  }
+
+  th,
+  td {
+    padding: 12px;
+  }
+
+  .actions-cell {
+    min-width: 200px;
+    justify-content: flex-start;
+  }
+
+  .actions-cell button {
+    flex: 1 1 auto;
     justify-content: center;
   }
 }

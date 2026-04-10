@@ -398,11 +398,12 @@ function renderSummary(finalBalance, rows) {
   const userMonthly = monthlyDue - secretaryMonthly;
   const currentMonth = getCurrentMonthValue();
   const currentMonthInfo = monthParts(currentMonth);
-  const currentDueLabel = `Total exigido para <span class="next-due-month">${currentMonthInfo.name}</span> de ${currentMonthInfo.year}`;
   const currentBalance = Math.max(0, getBalanceAtMonth(rows, currentMonth));
   const lastCoveredMonthValue = getLastCoveredMonth(rows);
   const lastCoveredMonth = lastCoveredMonthValue ? monthLabel(lastCoveredMonthValue) : "Ningun mes totalmente cubierto";
   const lastCoveredMonthClass = lastCoveredMonthValue ? "month-value" : "month-value-empty";
+  const totalPaid = rows.reduce((sum, row) => sum + row.paid, 0);
+  const totalCommission = rows.reduce((sum, row) => sum + row.secretaryCommission, 0);
 
   const statusText = currentBalance > 0
     ? `Tiene atraso acumulado de ${money(currentBalance)} al mes actual.`
@@ -413,12 +414,13 @@ function renderSummary(finalBalance, rows) {
   const statusValueTone = currentBalance > 0 ? "status-value-due" : finalBalance < 0 ? "status-value-advance" : "status-value-ontrack";
 
   topStatus.innerHTML = `
-    <div class="status-line ${statusTone}">
+    <div class="status-line status-line-primary ${statusTone}">
       <span class="status-label">Estado actual</span>
       <span class="status-value ${statusValueTone}">${statusText}</span>
     </div>
     <div class="status-line is-highlight">
-      <span class="status-label">${currentDueLabel}</span>
+      <span class="status-label">Exigido al mes actual</span>
+      <span class="status-meta"><span class="next-due-month">${currentMonthInfo.name}</span> ${currentMonthInfo.year}</span>
       <span class="status-value amount-general">${money(currentBalance)}</span>
     </div>
     <div class="status-line is-month">
@@ -428,9 +430,28 @@ function renderSummary(finalBalance, rows) {
   `;
 
   summary.innerHTML = `
-    <div><strong>Cuota mensual:</strong> <span class="amount-general">${money(monthlyDue)}</span></div>
-    <div><strong>Comision secretaria:</strong> <span class="amount-commission">${secretaryPercent.toFixed(4)}% (${money(secretaryMonthly)} por cuota base)</span></div>
-    <div><strong>Neto para usuaria por cuota base:</strong> <span class="amount-net">${money(userMonthly)}</span></div>
+    <article class="metric-card metric-card-balance">
+      <span class="metric-label">Saldo actual</span>
+      <strong class="metric-value ${currentBalance > 0 ? "positive" : finalBalance < 0 ? "negative" : ""}">
+        ${currentBalance > 0 ? money(currentBalance) : finalBalance < 0 ? money(Math.abs(finalBalance)) : money(0)}
+      </strong>
+      <span class="metric-note">${currentBalance > 0 ? "Pendiente acumulado" : finalBalance < 0 ? "Saldo a favor" : "Sin diferencia pendiente"}</span>
+    </article>
+    <article class="metric-card metric-card-month">
+      <span class="metric-label">Proximo mes de referencia</span>
+      <strong class="metric-value">${currentMonthInfo.name} ${currentMonthInfo.year}</strong>
+      <span class="metric-note">Ultimo cubierto: <span class="${lastCoveredMonthClass}">${lastCoveredMonth}</span></span>
+    </article>
+    <article class="metric-card metric-card-paid">
+      <span class="metric-label">Total pagado</span>
+      <strong class="metric-value amount-paid">${money(totalPaid)}</strong>
+      <span class="metric-note">Cuota base: <span class="amount-general">${money(monthlyDue)}</span></span>
+    </article>
+    <article class="metric-card metric-card-commission">
+      <span class="metric-label">Comision acumulada</span>
+      <strong class="metric-value amount-commission">${money(totalCommission)}</strong>
+      <span class="metric-note">${secretaryPercent.toFixed(4)}% por cuota, neto base <span class="amount-net">${money(userMonthly)}</span></span>
+    </article>
   `;
 }
 
@@ -453,14 +474,14 @@ function renderTable(rows) {
       const balanceClass = row.balanceNext > 0 ? "positive" : row.balanceNext < 0 ? "negative" : "";
       return `
         <tr>
-          <td>${monthLabel(row.month)}</td>
-          <td>${money(row.balanceAtStart)}</td>
-          <td><span class="amount-general">${money(row.monthlyDueApplied)}</span></td>
-          <td><span class="amount-general">${money(row.expectedThisMonth)}</span></td>
-          <td><span class="amount-paid">${money(row.paid)}</span></td>
-          <td><span class="amount-commission">${money(row.secretaryCommission)}</span></td>
-          <td><span class="amount-net">${money(row.netForUser)}</span></td>
-          <td class="${balanceClass}">${money(row.balanceNext)}</td>
+          <td class="cell-month">${monthLabel(row.month)}</td>
+          <td class="cell-amount">${money(row.balanceAtStart)}</td>
+          <td class="cell-amount"><span class="amount-general">${money(row.monthlyDueApplied)}</span></td>
+          <td class="cell-amount"><span class="amount-general">${money(row.expectedThisMonth)}</span></td>
+          <td class="cell-amount"><span class="amount-paid">${money(row.paid)}</span></td>
+          <td class="cell-amount"><span class="amount-commission">${money(row.secretaryCommission)}</span></td>
+          <td class="cell-amount"><span class="amount-net">${money(row.netForUser)}</span></td>
+          <td class="cell-amount ${balanceClass}">${money(row.balanceNext)}</td>
           <td class="actions-cell">
             <button type="button" data-month="${row.month}" class="add-more-btn">Agregar abono</button>
             <button type="button" data-id="${row.id}" class="edit-btn">Editar pago</button>
