@@ -47,6 +47,10 @@ function normalizeMonthString(value) {
   return String(value || "").trim();
 }
 
+function isFutureMonth(value, referenceMonth = getCurrentMonthValue()) {
+  return normalizeMonthString(value) > normalizeMonthString(referenceMonth);
+}
+
 function parseStrictAmount(value) {
   if (typeof value === "number") {
     if (!Number.isFinite(value) || value < 0) {
@@ -134,6 +138,10 @@ function validateImportData(parsed) {
       throw new Error("El respaldo contiene meses de pago invalidos.");
     }
 
+    if (isFutureMonth(payment.month)) {
+      throw new Error("El respaldo contiene pagos con meses futuros.");
+    }
+
     try {
       parseStrictAmount(payment.amount);
     } catch {
@@ -168,7 +176,7 @@ function normalizeStateData(parsed) {
         amount: parseStrictAmount(p.amount),
         createdAt: toNumber(p.createdAt) || Date.now() + i,
       }))
-      .filter((p) => isValidMonthString(p.month));
+      .filter((p) => isValidMonthString(p.month) && !isFutureMonth(p.month));
   }
 
   return normalized;
@@ -208,6 +216,10 @@ function sortPayments() {
 }
 
 function addPayment(month, amount) {
+  if (isFutureMonth(month)) {
+    throw new Error("No se pueden registrar pagos en meses futuros.");
+  }
+
   state.payments.push({
     id: makePaymentId(),
     month,
@@ -217,6 +229,10 @@ function addPayment(month, amount) {
 }
 
 function updatePayment(id, month, amount) {
+  if (isFutureMonth(month)) {
+    throw new Error("No se pueden registrar pagos en meses futuros.");
+  }
+
   const payment = state.payments.find((p) => String(p.id) === String(id));
   if (!payment) return false;
   payment.month = month;
@@ -528,6 +544,10 @@ function renderTable(rows) {
         alert("Mes invalido. Usa el formato AAAA-MM.");
         return;
       }
+      if (isFutureMonth(month)) {
+        alert("No se pueden registrar pagos en meses futuros.");
+        return;
+      }
 
       const enteredAmount = prompt(`Monto para ${monthLabel(month)} (USD):`, String(payment.amount));
       if (enteredAmount === null) return;
@@ -540,8 +560,14 @@ function renderTable(rows) {
         return;
       }
 
-      const updated = updatePayment(id, month, amount);
-      if (!updated) return;
+      try {
+        const updated = updatePayment(id, month, amount);
+        if (!updated) return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "No se pudo actualizar el pago.";
+        alert(message);
+        return;
+      }
       saveState();
       render();
     });
@@ -755,6 +781,7 @@ async function handleImportFile(file) {
 function render() {
   monthlyDueInput.value = state.settings.monthlyDue;
   secretaryPercentInput.value = state.settings.secretaryPercent;
+  paymentMonthInput.max = getCurrentMonthValue();
 
   const { rows, finalBalance } = calculateRows();
   renderSummary(finalBalance, rows);
@@ -793,8 +820,18 @@ paymentForm.addEventListener("submit", (event) => {
     alert("Selecciona un mes valido.");
     return;
   }
+  if (isFutureMonth(month)) {
+    alert("No se pueden registrar pagos en meses futuros.");
+    return;
+  }
 
-  addPayment(month, amount);
+  try {
+    addPayment(month, amount);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo registrar el pago.";
+    alert(message);
+    return;
+  }
   saveState();
   render();
 
