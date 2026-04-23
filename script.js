@@ -54,7 +54,7 @@ function isFutureMonth(value, referenceMonth = getCurrentMonthValue()) {
 function parseStrictAmount(value) {
   if (typeof value === "number") {
     if (!Number.isFinite(value) || value < 0) {
-      throw new Error("El monto debe ser un numero valido mayor o igual a 0.");
+      throw new Error("El monto debe ser un número válido mayor o igual a 0.");
     }
     return value;
   }
@@ -66,12 +66,12 @@ function parseStrictAmount(value) {
 
   const normalized = text.replace(",", ".");
   if (!/^\d+(\.\d+)?$/.test(normalized)) {
-    throw new Error("El monto debe ser un numero valido mayor o igual a 0.");
+    throw new Error("El monto debe ser un número válido mayor o igual a 0.");
   }
 
   const amount = Number(normalized);
   if (!Number.isFinite(amount) || amount < 0) {
-    throw new Error("El monto debe ser un numero valido mayor o igual a 0.");
+    throw new Error("El monto debe ser un número válido mayor o igual a 0.");
   }
 
   return amount;
@@ -106,11 +106,11 @@ function normalizePaymentId(value, fallbackIndex) {
 
 function validateImportData(parsed) {
   if (!isObject(parsed)) {
-    throw new Error("El respaldo debe ser un objeto JSON valido.");
+    throw new Error("El respaldo debe ser un objeto JSON válido.");
   }
 
   if (!isObject(parsed.settings)) {
-    throw new Error("El respaldo no incluye configuracion valida.");
+    throw new Error("El respaldo no incluye configuración válida.");
   }
 
   if (!Array.isArray(parsed.payments)) {
@@ -122,20 +122,20 @@ function validateImportData(parsed) {
   }
 
   if (!Number.isFinite(Number(parsed.settings.monthlyDue))) {
-    throw new Error("La cuota mensual del respaldo no es valida.");
+    throw new Error("La cuota mensual del respaldo no es válida.");
   }
 
   if (!Number.isFinite(Number(parsed.settings.secretaryPercent))) {
-    throw new Error("La comision de secretaria del respaldo no es valida.");
+    throw new Error("La comisión de secretaría del respaldo no es válida.");
   }
 
   for (const payment of parsed.payments) {
     if (!isObject(payment)) {
-      throw new Error("El respaldo contiene pagos con formato invalido.");
+      throw new Error("El respaldo contiene pagos con formato inválido.");
     }
 
     if (!isValidMonthString(payment.month)) {
-      throw new Error("El respaldo contiene meses de pago invalidos.");
+      throw new Error("El respaldo contiene meses de pago inválidos.");
     }
 
     if (isFutureMonth(payment.month)) {
@@ -145,11 +145,11 @@ function validateImportData(parsed) {
     try {
       parseStrictAmount(payment.amount);
     } catch {
-      throw new Error("El respaldo contiene montos de pago invalidos.");
+      throw new Error("El respaldo contiene montos de pago inválidos.");
     }
 
     if (payment.createdAt !== undefined && !Number.isFinite(Number(payment.createdAt))) {
-      throw new Error("El respaldo contiene fechas de registro invalidas.");
+      throw new Error("El respaldo contiene fechas de registro inválidas.");
     }
   }
 }
@@ -416,7 +416,7 @@ function renderSummary(finalBalance, rows) {
   const currentMonthInfo = monthParts(currentMonth);
   const currentBalance = Math.max(0, getBalanceAtMonth(rows, currentMonth));
   const lastCoveredMonthValue = getLastCoveredMonth(rows);
-  const lastCoveredMonth = lastCoveredMonthValue ? monthLabel(lastCoveredMonthValue) : "Ningun mes totalmente cubierto";
+  const lastCoveredMonth = lastCoveredMonthValue ? monthLabel(lastCoveredMonthValue) : "Ningún mes totalmente cubierto";
   const lastCoveredMonthClass = lastCoveredMonthValue ? "month-value" : "month-value-empty";
   const totalPaid = rows.reduce((sum, row) => sum + row.paid, 0);
   const totalCommission = rows.reduce((sum, row) => sum + row.secretaryCommission, 0);
@@ -425,7 +425,7 @@ function renderSummary(finalBalance, rows) {
     ? `Tiene atraso acumulado de ${money(currentBalance)} al mes actual.`
     : finalBalance < 0
       ? `Tiene saldo a favor de ${money(Math.abs(finalBalance))}.`
-      : "Esta al dia sin saldo pendiente ni saldo a favor.";
+      : "Está al día sin saldo pendiente ni saldo a favor.";
   const statusTone = currentBalance > 0 ? "is-warning" : finalBalance < 0 ? "is-ok" : "is-neutral";
   const statusValueTone = currentBalance > 0 ? "status-value-due" : finalBalance < 0 ? "status-value-advance" : "status-value-ontrack";
 
@@ -440,7 +440,7 @@ function renderSummary(finalBalance, rows) {
       <span class="status-value amount-general">${money(currentBalance)}</span>
     </div>
     <div class="status-line is-month">
-      <span class="status-label">Ultimo mes totalmente cubierto</span>
+      <span class="status-label">Último mes totalmente cubierto</span>
       <span class="status-value ${lastCoveredMonthClass}">${lastCoveredMonth}</span>
     </div>
   `;
@@ -454,9 +454,9 @@ function renderSummary(finalBalance, rows) {
       <span class="metric-note">${currentBalance > 0 ? "Pendiente acumulado" : finalBalance < 0 ? "Saldo a favor" : "Sin diferencia pendiente"}</span>
     </article>
     <article class="metric-card metric-card-month">
-      <span class="metric-label">Proximo mes de referencia</span>
+      <span class="metric-label">Mes de referencia</span>
       <strong class="metric-value">${currentMonthInfo.name} ${currentMonthInfo.year}</strong>
-      <span class="metric-note">Ultimo cubierto: <span class="${lastCoveredMonthClass}">${lastCoveredMonth}</span></span>
+      <span class="metric-note">Último cubierto: <span class="${lastCoveredMonthClass}">${lastCoveredMonth}</span></span>
     </article>
     <article class="metric-card metric-card-paid">
       <span class="metric-label">Total pagado</span>
@@ -464,7 +464,7 @@ function renderSummary(finalBalance, rows) {
       <span class="metric-note">Cuota base: <span class="amount-general">${money(monthlyDue)}</span></span>
     </article>
     <article class="metric-card metric-card-commission">
-      <span class="metric-label">Comision acumulada</span>
+      <span class="metric-label">Comisión acumulada</span>
       <strong class="metric-value amount-commission">${money(totalCommission)}</strong>
       <span class="metric-note">${secretaryPercent.toFixed(4)}% por cuota, neto base <span class="amount-net">${money(userMonthly)}</span></span>
     </article>
@@ -474,7 +474,7 @@ function renderSummary(finalBalance, rows) {
 function renderTable(rows) {
   if (rows.length === 0) {
     historyToggleBtn.hidden = true;
-    paymentsBody.innerHTML = `<tr><td colspan="9" class="muted">No hay pagos registrados todavia.</td></tr>`;
+    paymentsBody.innerHTML = `<tr><td colspan="9" class="muted">No hay pagos registrados todavía.</td></tr>`;
     return;
   }
 
@@ -483,24 +483,24 @@ function renderTable(rows) {
   const visibleRows = state.showFullHistory ? reversedRows : reversedRows.slice(0, 3);
 
   historyToggleBtn.hidden = !hasHiddenRows;
-  historyToggleBtn.textContent = state.showFullHistory ? "Ver menos" : "Ver mas";
+  historyToggleBtn.textContent = state.showFullHistory ? "Ver menos" : "Ver más";
 
   paymentsBody.innerHTML = visibleRows
     .map((row) => {
       const balanceClass = row.balanceNext > 0 ? "positive" : row.balanceNext < 0 ? "negative" : "";
       return `
         <tr>
-          <td class="cell-month">${monthLabel(row.month)}</td>
-          <td class="cell-amount">${money(row.balanceAtStart)}</td>
-          <td class="cell-amount"><span class="amount-general">${money(row.monthlyDueApplied)}</span></td>
-          <td class="cell-amount"><span class="amount-general">${money(row.expectedThisMonth)}</span></td>
-          <td class="cell-amount"><span class="amount-paid">${money(row.paid)}</span></td>
-          <td class="cell-amount"><span class="amount-commission">${money(row.secretaryCommission)}</span></td>
-          <td class="cell-amount"><span class="amount-net">${money(row.netForUser)}</span></td>
-          <td class="cell-amount ${balanceClass}">${money(row.balanceNext)}</td>
-          <td class="actions-cell">
-            <button type="button" data-month="${row.month}" class="add-more-btn">Agregar abono</button>
-            <button type="button" data-id="${row.id}" class="edit-btn">Editar pago</button>
+          <td class="cell-month" data-label="Mes">${monthLabel(row.month)}</td>
+          <td class="cell-amount" data-label="Saldo inicio">${money(row.balanceAtStart)}</td>
+          <td class="cell-amount" data-label="Cuota mes"><span class="amount-general">${money(row.monthlyDueApplied)}</span></td>
+          <td class="cell-amount" data-label="Total exigido"><span class="amount-general">${money(row.expectedThisMonth)}</span></td>
+          <td class="cell-amount" data-label="Pago"><span class="amount-paid">${money(row.paid)}</span></td>
+          <td class="cell-amount" data-label="Comisión de secretaría"><span class="amount-commission">${money(row.secretaryCommission)}</span></td>
+          <td class="cell-amount" data-label="Neto usuaria"><span class="amount-net">${money(row.netForUser)}</span></td>
+          <td class="cell-amount ${balanceClass}" data-label="Saldo próximo mes">${money(row.balanceNext)}</td>
+          <td class="actions-cell" data-label="Acción">
+            <button type="button" data-month="${row.month}" class="add-more-btn">Abono</button>
+            <button type="button" data-id="${row.id}" class="edit-btn">Editar</button>
             <button type="button" data-id="${row.id}" class="danger remove-btn">Eliminar</button>
           </td>
         </tr>
@@ -520,7 +520,7 @@ function renderTable(rows) {
       try {
         amount = parseStrictAmount(entered);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Monto invalido.";
+        const message = error instanceof Error ? error.message : "Monto inválido.";
         alert(message);
         return;
       }
@@ -541,7 +541,7 @@ function renderTable(rows) {
       if (enteredMonth === null) return;
       const month = normalizeMonthString(enteredMonth);
       if (!isValidMonthString(month)) {
-        alert("Mes invalido. Usa el formato AAAA-MM.");
+        alert("Mes inválido. Usa el formato AAAA-MM.");
         return;
       }
       if (isFutureMonth(month)) {
@@ -555,7 +555,7 @@ function renderTable(rows) {
       try {
         amount = parseStrictAmount(enteredAmount);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Monto invalido.";
+        const message = error instanceof Error ? error.message : "Monto inválido.";
         alert(message);
         return;
       }
@@ -574,7 +574,7 @@ function renderTable(rows) {
   });
   document.querySelectorAll(".remove-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const confirmed = confirm("Estas seguro de que quieres eliminar este registro?");
+      const confirmed = confirm("¿Estás seguro de que quieres eliminar este registro?");
       if (!confirmed) return;
 
       const id = String(btn.dataset.id || "");
@@ -688,7 +688,7 @@ function csvToBackupObject(text) {
     .filter((line) => line.length > 0);
 
   if (lines.length < 2) {
-    throw new Error("El CSV esta vacio o incompleto.");
+    throw new Error("El CSV está vacío o incompleto.");
   }
 
   const header = parseCsvLine(lines[0]);
@@ -793,7 +793,7 @@ settingsForm.addEventListener("submit", (event) => {
   try {
     state.settings.monthlyDue = parseStrictAmount(monthlyDueInput.value);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Cuota mensual invalida.";
+    const message = error instanceof Error ? error.message : "Cuota mensual inválida.";
     alert(message);
     return;
   }
@@ -811,13 +811,13 @@ paymentForm.addEventListener("submit", (event) => {
   try {
     amount = parseStrictAmount(paymentAmountInput.value);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Monto invalido.";
+    const message = error instanceof Error ? error.message : "Monto inválido.";
     alert(message);
     return;
   }
 
   if (!isValidMonthString(month)) {
-    alert("Selecciona un mes valido.");
+    alert("Selecciona un mes válido.");
     return;
   }
   if (isFutureMonth(month)) {
