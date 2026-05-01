@@ -449,15 +449,16 @@ tr:last-child td {
   color: var(--success);
 }
 
-.remove-btn {
+button.remove-btn {
   background: var(--warning-soft);
   color: var(--danger);
   border-color: #713237;
 }
 
-.remove-btn:hover {
+button.remove-btn:hover {
   background: #4a2529;
   border-color: #9b4850;
+  color: #ffb4ad;
 }
 
 .muted {
