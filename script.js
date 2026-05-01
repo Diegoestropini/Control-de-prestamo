@@ -407,14 +407,16 @@ function calculateRows() {
   return { rows, finalBalance: balance };
 }
 
-function renderSummary(finalBalance, rows) {
+function renderSummary(rows) {
   const monthlyDue = state.settings.monthlyDue;
   const secretaryPercent = state.settings.secretaryPercent;
   const secretaryMonthly = monthlyDue * (secretaryPercent / 100);
   const userMonthly = monthlyDue - secretaryMonthly;
   const currentMonth = getCurrentMonthValue();
   const currentMonthInfo = monthParts(currentMonth);
-  const currentBalance = Math.max(0, getBalanceAtMonth(rows, currentMonth));
+  const balanceAtCurrentMonth = getBalanceAtMonth(rows, currentMonth);
+  const currentBalance = Math.max(0, balanceAtCurrentMonth);
+  const currentAdvance = Math.max(0, -balanceAtCurrentMonth);
   const lastCoveredMonthValue = getLastCoveredMonth(rows);
   const lastCoveredMonth = lastCoveredMonthValue ? monthLabel(lastCoveredMonthValue) : "Ningún mes totalmente cubierto";
   const lastCoveredMonthClass = lastCoveredMonthValue ? "month-value" : "month-value-empty";
@@ -423,11 +425,11 @@ function renderSummary(finalBalance, rows) {
 
   const statusText = currentBalance > 0
     ? `Tiene atraso acumulado de ${money(currentBalance)} al mes actual.`
-    : finalBalance < 0
-      ? `Tiene saldo a favor de ${money(Math.abs(finalBalance))}.`
+    : currentAdvance > 0
+      ? `Tiene saldo a favor de ${money(currentAdvance)}.`
       : "Está al día sin saldo pendiente ni saldo a favor.";
-  const statusTone = currentBalance > 0 ? "is-warning" : finalBalance < 0 ? "is-ok" : "is-neutral";
-  const statusValueTone = currentBalance > 0 ? "status-value-due" : finalBalance < 0 ? "status-value-advance" : "status-value-ontrack";
+  const statusTone = currentBalance > 0 ? "is-warning" : currentAdvance > 0 ? "is-ok" : "is-neutral";
+  const statusValueTone = currentBalance > 0 ? "status-value-due" : currentAdvance > 0 ? "status-value-advance" : "status-value-ontrack";
 
   topStatus.innerHTML = `
     <div class="status-line status-line-primary ${statusTone}">
@@ -448,10 +450,10 @@ function renderSummary(finalBalance, rows) {
   summary.innerHTML = `
     <article class="metric-card metric-card-balance">
       <span class="metric-label">Saldo actual</span>
-      <strong class="metric-value ${currentBalance > 0 ? "positive" : finalBalance < 0 ? "negative" : ""}">
-        ${currentBalance > 0 ? money(currentBalance) : finalBalance < 0 ? money(Math.abs(finalBalance)) : money(0)}
+      <strong class="metric-value ${currentBalance > 0 ? "positive" : currentAdvance > 0 ? "negative" : ""}">
+        ${currentBalance > 0 ? money(currentBalance) : currentAdvance > 0 ? money(currentAdvance) : money(0)}
       </strong>
-      <span class="metric-note">${currentBalance > 0 ? "Pendiente acumulado" : finalBalance < 0 ? "Saldo a favor" : "Sin diferencia pendiente"}</span>
+      <span class="metric-note">${currentBalance > 0 ? "Pendiente acumulado" : currentAdvance > 0 ? "Saldo a favor" : "Sin diferencia pendiente"}</span>
     </article>
     <article class="metric-card metric-card-month">
       <span class="metric-label">Mes de referencia</span>
@@ -783,8 +785,8 @@ function render() {
   secretaryPercentInput.value = state.settings.secretaryPercent;
   paymentMonthInput.max = getCurrentMonthValue();
 
-  const { rows, finalBalance } = calculateRows();
-  renderSummary(finalBalance, rows);
+  const { rows } = calculateRows();
+  renderSummary(rows);
   renderTable(rows);
 }
 
