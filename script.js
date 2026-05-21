@@ -1,5 +1,5 @@
 const STORAGE_KEY = "prestamo_data_v1";
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
 const MAX_IMPORT_FILE_BYTES = 1024 * 1024;
 const MAX_IMPORT_PAYMENTS = 5000;
 
@@ -7,6 +7,7 @@ const state = {
   settings: {
     monthlyDue: 120,
     secretaryPercent: 16.6667,
+    startMonth: getCurrentMonthValue(),
   },
   payments: [],
   showFullHistory: false,
@@ -22,6 +23,7 @@ const historyToggleBtn = document.getElementById("historyToggle");
 
 const monthlyDueInput = document.getElementById("monthlyDue");
 const secretaryPercentInput = document.getElementById("secretaryPercent");
+const startMonthInput = document.getElementById("startMonth");
 const paymentMonthInput = document.getElementById("paymentMonth");
 const paymentAmountInput = document.getElementById("paymentAmount");
 
@@ -49,6 +51,32 @@ function normalizeMonthString(value) {
 
 function isFutureMonth(value, referenceMonth = getCurrentMonthValue()) {
   return normalizeMonthString(value) > normalizeMonthString(referenceMonth);
+}
+
+function getDefaultSettings() {
+  return {
+    monthlyDue: 120,
+    secretaryPercent: 16.6667,
+    startMonth: getCurrentMonthValue(),
+  };
+}
+
+function getEarliestPaymentMonth(payments) {
+  return payments.reduce((earliest, payment) => {
+    if (!isValidMonthString(payment.month)) return earliest;
+    if (!earliest || payment.month < earliest) return payment.month;
+    return earliest;
+  }, null);
+}
+
+function getEffectiveStartMonth() {
+  return isValidMonthString(state.settings.startMonth)
+    ? state.settings.startMonth
+    : getEarliestPaymentMonth(state.payments) || getCurrentMonthValue();
+}
+
+function isBeforeStartMonth(value, startMonth = getEffectiveStartMonth()) {
+  return isValidMonthString(value) && isValidMonthString(startMonth) && value < startMonth;
 }
 
 function parseStrictAmount(value) {
@@ -104,6 +132,29 @@ function normalizePaymentId(value, fallbackIndex) {
   return /^[A-Za-z0-9_-]{1,80}$/.test(id) ? id : makePaymentId(`imported-${fallbackIndex}`);
 }
 
+function normalizeUniquePaymentId(value, fallbackIndex, usedIds) {
+  let id = normalizePaymentId(value, fallbackIndex);
+  if (!usedIds.has(id)) {
+    usedIds.add(id);
+    return id;
+  }
+
+  do {
+    id = makePaymentId(`imported-${fallbackIndex}`);
+  } while (usedIds.has(id));
+
+  usedIds.add(id);
+  return id;
+}
+
+function parseSecretaryPercent(value) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+    throw new Error("La comisión de secretaría debe estar entre 0 y 100.");
+  }
+  return percent;
+}
+
 function validateImportData(parsed) {
   if (!isObject(parsed)) {
     throw new Error("El respaldo debe ser un objeto JSON válido.");
@@ -121,17 +172,46 @@ function validateImportData(parsed) {
     throw new Error(`El respaldo supera el limite de ${MAX_IMPORT_PAYMENTS} pagos.`);
   }
 
-  if (!Number.isFinite(Number(parsed.settings.monthlyDue))) {
+  try {
+    parseStrictAmount(parsed.settings.monthlyDue);
+  } catch {
     throw new Error("La cuota mensual del respaldo no es válida.");
   }
 
-  if (!Number.isFinite(Number(parsed.settings.secretaryPercent))) {
+  try {
+    parseSecretaryPercent(parsed.settings.secretaryPercent);
+  } catch {
     throw new Error("La comisión de secretaría del respaldo no es válida.");
   }
 
+  const providedStartMonth = normalizeMonthString(parsed.settings.startMonth);
+  if (providedStartMonth) {
+    if (!isValidMonthString(providedStartMonth)) {
+      throw new Error("El mes de inicio del respaldo no es válido.");
+    }
+
+    if (isFutureMonth(providedStartMonth)) {
+      throw new Error("El mes de inicio no puede ser futuro.");
+    }
+  }
+
+  const seenIds = new Set();
   for (const payment of parsed.payments) {
     if (!isObject(payment)) {
       throw new Error("El respaldo contiene pagos con formato inválido.");
+    }
+
+    const providedId = String(payment.id || "").trim();
+    if (providedId) {
+      if (!/^[A-Za-z0-9_-]{1,80}$/.test(providedId)) {
+        throw new Error("El respaldo contiene identificadores de pago inválidos.");
+      }
+
+      if (seenIds.has(providedId)) {
+        throw new Error("El respaldo contiene pagos con identificadores duplicados.");
+      }
+
+      seenIds.add(providedId);
     }
 
     if (!isValidMonthString(payment.month)) {
@@ -152,31 +232,67 @@ function validateImportData(parsed) {
       throw new Error("El respaldo contiene fechas de registro inválidas.");
     }
   }
+
+  if (providedStartMonth && parsed.payments.some((payment) => payment.month < providedStartMonth)) {
+    throw new Error("El respaldo contiene pagos anteriores al mes de inicio.");
+  }
 }
 
 function normalizeStateData(parsed) {
   const normalized = {
-    settings: {
-      monthlyDue: 120,
-      secretaryPercent: 16.6667,
-    },
+    settings: getDefaultSettings(),
     payments: [],
   };
 
-  if (parsed && typeof parsed === "object" && parsed.settings) {
-    normalized.settings.monthlyDue = Math.max(0, toNumber(parsed.settings.monthlyDue));
-    normalized.settings.secretaryPercent = Math.max(0, Math.min(100, toNumber(parsed.settings.secretaryPercent)));
+  if (parsed && typeof parsed === "object" && Array.isArray(parsed.payments)) {
+    const usedIds = new Set();
+    normalized.payments = parsed.payments.reduce((payments, p, i) => {
+      if (!isObject(p)) return payments;
+
+      const month = normalizeMonthString(p.month);
+      if (!isValidMonthString(month) || isFutureMonth(month)) return payments;
+
+      let amount;
+      try {
+        amount = parseStrictAmount(p.amount);
+      } catch {
+        return payments;
+      }
+
+      payments.push({
+        id: normalizeUniquePaymentId(p.id, i, usedIds),
+        month,
+        amount,
+        createdAt: toNumber(p.createdAt) || Date.now() + i,
+      });
+      return payments;
+    }, []);
   }
 
-  if (parsed && typeof parsed === "object" && Array.isArray(parsed.payments)) {
-    normalized.payments = parsed.payments
-      .map((p, i) => ({
-        id: normalizePaymentId(p.id, i),
-        month: normalizeMonthString(p.month),
-        amount: parseStrictAmount(p.amount),
-        createdAt: toNumber(p.createdAt) || Date.now() + i,
-      }))
-      .filter((p) => isValidMonthString(p.month) && !isFutureMonth(p.month));
+  if (parsed && typeof parsed === "object" && parsed.settings) {
+    try {
+      normalized.settings.monthlyDue = parseStrictAmount(parsed.settings.monthlyDue);
+    } catch {
+      normalized.settings.monthlyDue = 120;
+    }
+
+    try {
+      normalized.settings.secretaryPercent = parseSecretaryPercent(parsed.settings.secretaryPercent);
+    } catch {
+      normalized.settings.secretaryPercent = 16.6667;
+    }
+
+    const startMonth = normalizeMonthString(parsed.settings.startMonth);
+    if (isValidMonthString(startMonth) && !isFutureMonth(startMonth)) {
+      const earliestPaymentMonth = getEarliestPaymentMonth(normalized.payments);
+      normalized.settings.startMonth = earliestPaymentMonth && startMonth > earliestPaymentMonth
+        ? earliestPaymentMonth
+        : startMonth;
+    } else {
+      normalized.settings.startMonth = getEarliestPaymentMonth(normalized.payments) || getCurrentMonthValue();
+    }
+  } else {
+    normalized.settings.startMonth = getEarliestPaymentMonth(normalized.payments) || getCurrentMonthValue();
   }
 
   return normalized;
@@ -194,8 +310,8 @@ function loadState() {
 
   try {
     applyStateData(JSON.parse(raw));
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.warn("No se pudo cargar el estado guardado.", error);
   }
 }
 
@@ -220,6 +336,10 @@ function addPayment(month, amount) {
     throw new Error("No se pueden registrar pagos en meses futuros.");
   }
 
+  if (isBeforeStartMonth(month)) {
+    throw new Error("No se pueden registrar pagos anteriores al mes de inicio.");
+  }
+
   state.payments.push({
     id: makePaymentId(),
     month,
@@ -231,6 +351,10 @@ function addPayment(month, amount) {
 function updatePayment(id, month, amount) {
   if (isFutureMonth(month)) {
     throw new Error("No se pueden registrar pagos en meses futuros.");
+  }
+
+  if (isBeforeStartMonth(month)) {
+    throw new Error("No se pueden registrar pagos anteriores al mes de inicio.");
   }
 
   const payment = state.payments.find((p) => String(p.id) === String(id));
@@ -286,15 +410,20 @@ function getMonthlyClosings(rows) {
 
 function getBalanceAtMonth(rows, targetMonth) {
   const monthlyDue = state.settings.monthlyDue;
+  const startMonth = getEffectiveStartMonth();
+  if (targetMonth < startMonth) {
+    return 0;
+  }
+
   const closings = getMonthlyClosings(rows);
 
   if (closings.length === 0) {
-    return monthlyDue;
+    return (monthDiff(startMonth, targetMonth) + 1) * monthlyDue;
   }
 
   const firstRecordedMonth = closings[0].month;
   if (targetMonth < firstRecordedMonth) {
-    return monthlyDue;
+    return (monthDiff(startMonth, targetMonth) + 1) * monthlyDue;
   }
 
   let lastClosingBeforeTarget = null;
@@ -317,45 +446,43 @@ function getBalanceAtMonth(rows, targetMonth) {
 }
 
 function getLastCoveredMonth(rows) {
-  if (rows.length === 0) {
-    return null;
-  }
-
   const monthlyDue = state.settings.monthlyDue;
   if (monthlyDue <= 0) {
     return getCurrentMonthValue();
   }
 
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const startMonth = getEffectiveStartMonth();
   const closings = getMonthlyClosings(rows);
   let lastCoveredMonth = null;
-  let previousMonth = null;
+  let previousMonth = startMonth;
   let previousBalance = 0;
 
   for (const closing of closings) {
-    if (previousMonth) {
-      let cursor = addOneMonth(previousMonth);
-      while (cursor < closing.month) {
-        previousBalance += monthlyDue;
-        if (previousBalance <= 0) {
-          lastCoveredMonth = cursor;
-        }
-        previousMonth = cursor;
-        cursor = addOneMonth(cursor);
+    let cursor = previousMonth;
+    while (cursor < closing.month) {
+      previousBalance += monthlyDue;
+      if (previousBalance <= 0) {
+        lastCoveredMonth = cursor;
       }
+      cursor = addOneMonth(cursor);
     }
 
     previousBalance = closing.balanceNext;
     if (previousBalance <= 0) {
       lastCoveredMonth = closing.month;
     }
-    previousMonth = closing.month;
+    previousMonth = addOneMonth(closing.month);
   }
 
   if (!previousMonth) {
     return null;
   }
 
-  let cursor = addOneMonth(previousMonth);
+  let cursor = previousMonth;
   while (previousBalance + monthlyDue <= 0) {
     previousBalance += monthlyDue;
     lastCoveredMonth = cursor;
@@ -371,11 +498,14 @@ function calculateRows() {
 
   let balance = 0;
   let previousMonth = null;
+  const startMonth = getEffectiveStartMonth();
   const monthlyDue = state.settings.monthlyDue;
   const percent = state.settings.secretaryPercent / 100;
 
   for (const payment of state.payments) {
-    if (previousMonth && payment.month !== previousMonth) {
+    if (!previousMonth) {
+      balance += Math.max(0, monthDiff(startMonth, payment.month)) * monthlyDue;
+    } else if (payment.month !== previousMonth) {
       const skippedMonths = Math.max(0, monthDiff(previousMonth, payment.month) - 1);
       balance += skippedMonths * monthlyDue;
     }
@@ -410,6 +540,7 @@ function calculateRows() {
 function renderSummary(rows) {
   const monthlyDue = state.settings.monthlyDue;
   const secretaryPercent = state.settings.secretaryPercent;
+  const startMonth = getEffectiveStartMonth();
   const secretaryMonthly = monthlyDue * (secretaryPercent / 100);
   const userMonthly = monthlyDue - secretaryMonthly;
   const currentMonth = getCurrentMonthValue();
@@ -463,7 +594,7 @@ function renderSummary(rows) {
     <article class="metric-card metric-card-paid">
       <span class="metric-label">Total pagado</span>
       <strong class="metric-value amount-paid">${money(totalPaid)}</strong>
-      <span class="metric-note">Cuota base: <span class="amount-general">${money(monthlyDue)}</span></span>
+      <span class="metric-note">Cuota base: <span class="amount-general">${money(monthlyDue)}</span>, inicio ${monthLabel(startMonth)}</span>
     </article>
     <article class="metric-card metric-card-commission">
       <span class="metric-label">Comisión acumulada</span>
@@ -550,6 +681,10 @@ function renderTable(rows) {
         alert("No se pueden registrar pagos en meses futuros.");
         return;
       }
+      if (isBeforeStartMonth(month)) {
+        alert("No se pueden registrar pagos anteriores al mes de inicio.");
+        return;
+      }
 
       const enteredAmount = prompt(`Monto para ${monthLabel(month)} (USD):`, String(payment.amount));
       if (enteredAmount === null) return;
@@ -594,6 +729,7 @@ function getBackupPayload() {
     settings: {
       monthlyDue: state.settings.monthlyDue,
       secretaryPercent: state.settings.secretaryPercent,
+      startMonth: getEffectiveStartMonth(),
     },
     payments: state.payments.map((p) => ({
       id: String(p.id),
@@ -614,13 +750,14 @@ function csvEscape(value) {
 
 function backupToCsv(payload) {
   const lines = [
-    "rowType,version,exportedAt,monthlyDue,secretaryPercent,id,month,amount,createdAt",
+    "rowType,version,exportedAt,monthlyDue,secretaryPercent,startMonth,id,month,amount,createdAt",
     [
       "settings",
       payload.version,
       payload.exportedAt,
       payload.settings.monthlyDue,
       payload.settings.secretaryPercent,
+      payload.settings.startMonth,
       "",
       "",
       "",
@@ -633,6 +770,7 @@ function backupToCsv(payload) {
       "payment",
       payload.version,
       payload.exportedAt,
+      "",
       "",
       "",
       payment.id,
@@ -649,6 +787,7 @@ function parseCsvLine(line) {
   const cells = [];
   let cell = "";
   let inQuotes = false;
+  let quoteClosed = false;
 
   for (let i = 0; i < line.length; i += 1) {
     const ch = line[i];
@@ -659,6 +798,7 @@ function parseCsvLine(line) {
         i += 1;
       } else if (ch === '"') {
         inQuotes = false;
+        quoteClosed = true;
       } else {
         cell += ch;
       }
@@ -668,18 +808,30 @@ function parseCsvLine(line) {
     if (ch === ',') {
       cells.push(cell);
       cell = "";
+      quoteClosed = false;
       continue;
     }
 
     if (ch === '"') {
+      if (cell.length > 0 || quoteClosed) {
+        throw new Error("El CSV contiene comillas en una posición inválida.");
+      }
       inQuotes = true;
       continue;
+    }
+
+    if (quoteClosed) {
+      throw new Error("El CSV contiene texto después de cerrar una celda entre comillas.");
     }
 
     cell += ch;
   }
 
   cells.push(cell);
+  if (inQuotes) {
+    throw new Error("El CSV contiene comillas sin cerrar.");
+  }
+
   return cells;
 }
 
@@ -694,21 +846,44 @@ function csvToBackupObject(text) {
   }
 
   const header = parseCsvLine(lines[0]);
-  const expectedHeader = ["rowType", "version", "exportedAt", "monthlyDue", "secretaryPercent", "id", "month", "amount", "createdAt"];
+  const legacyHeader = ["rowType", "version", "exportedAt", "monthlyDue", "secretaryPercent", "id", "month", "amount", "createdAt"];
+  const expectedHeader = ["rowType", "version", "exportedAt", "monthlyDue", "secretaryPercent", "startMonth", "id", "month", "amount", "createdAt"];
   if (header.join("|") !== expectedHeader.join("|")) {
-    throw new Error("Formato CSV no compatible.");
+    if (header.join("|") !== legacyHeader.join("|")) {
+      throw new Error("Formato CSV no compatible.");
+    }
   }
 
+  const hasStartMonthColumn = header.length === expectedHeader.length;
   let settings = null;
   const payments = [];
 
   for (let i = 1; i < lines.length; i += 1) {
-    const [rowType, version, exportedAt, monthlyDue, secretaryPercent, id, month, amount, createdAt] = parseCsvLine(lines[i]);
+    const cells = parseCsvLine(lines[i]);
+    if (cells.length !== header.length) {
+      throw new Error("El CSV contiene filas con cantidad de columnas inválida.");
+    }
+
+    const [
+      rowType,
+      version,
+      exportedAt,
+      monthlyDue,
+      secretaryPercent,
+      startMonth,
+      id,
+      month,
+      amount,
+      createdAt,
+    ] = hasStartMonthColumn
+      ? cells
+      : [cells[0], cells[1], cells[2], cells[3], cells[4], "", cells[5], cells[6], cells[7], cells[8]];
 
     if (rowType === "settings") {
       settings = {
-        monthlyDue: toNumber(monthlyDue),
-        secretaryPercent: toNumber(secretaryPercent),
+        monthlyDue,
+        secretaryPercent,
+        startMonth: normalizeMonthString(startMonth),
       };
       continue;
     }
@@ -723,7 +898,7 @@ function csvToBackupObject(text) {
       continue;
     }
 
-    if (rowType || version || exportedAt || monthlyDue || secretaryPercent || id || month || amount || createdAt) {
+    if (rowType || version || exportedAt || monthlyDue || secretaryPercent || startMonth || id || month || amount || createdAt) {
       throw new Error("El CSV contiene filas no reconocidas.");
     }
   }
@@ -783,6 +958,9 @@ async function handleImportFile(file) {
 function render() {
   monthlyDueInput.value = state.settings.monthlyDue;
   secretaryPercentInput.value = state.settings.secretaryPercent;
+  startMonthInput.value = getEffectiveStartMonth();
+  startMonthInput.max = getCurrentMonthValue();
+  paymentMonthInput.min = getEffectiveStartMonth();
   paymentMonthInput.max = getCurrentMonthValue();
 
   const { rows } = calculateRows();
@@ -792,15 +970,44 @@ function render() {
 
 settingsForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  let monthlyDue;
   try {
-    state.settings.monthlyDue = parseStrictAmount(monthlyDueInput.value);
+    monthlyDue = parseStrictAmount(monthlyDueInput.value);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Cuota mensual inválida.";
     alert(message);
     return;
   }
 
-  state.settings.secretaryPercent = Math.max(0, Math.min(100, toNumber(secretaryPercentInput.value)));
+  let secretaryPercent;
+  try {
+    secretaryPercent = parseSecretaryPercent(secretaryPercentInput.value);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Comisión de secretaría inválida.";
+    alert(message);
+    return;
+  }
+
+  const startMonth = normalizeMonthString(startMonthInput.value);
+  if (!isValidMonthString(startMonth)) {
+    alert("Selecciona un mes de inicio válido.");
+    return;
+  }
+
+  if (isFutureMonth(startMonth)) {
+    alert("El mes de inicio no puede ser futuro.");
+    return;
+  }
+
+  const earliestPaymentMonth = getEarliestPaymentMonth(state.payments);
+  if (earliestPaymentMonth && startMonth > earliestPaymentMonth) {
+    alert("El mes de inicio no puede ser posterior al primer pago registrado.");
+    return;
+  }
+
+  state.settings.monthlyDue = monthlyDue;
+  state.settings.secretaryPercent = secretaryPercent;
+  state.settings.startMonth = startMonth;
   saveState();
   render();
 });
@@ -826,6 +1033,10 @@ paymentForm.addEventListener("submit", (event) => {
     alert("No se pueden registrar pagos en meses futuros.");
     return;
   }
+  if (isBeforeStartMonth(month)) {
+    alert("No se pueden registrar pagos anteriores al mes de inicio.");
+    return;
+  }
 
   try {
     addPayment(month, amount);
@@ -849,7 +1060,7 @@ clearDataBtn.addEventListener("click", () => {
   const ok = confirm("Esto borrara toda la informacion guardada localmente. Desea continuar?");
   if (!ok) return;
 
-  state.settings = { monthlyDue: 120, secretaryPercent: 16.6667 };
+  state.settings = getDefaultSettings();
   state.payments = [];
   state.showFullHistory = false;
   saveState();
