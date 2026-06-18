@@ -248,6 +248,12 @@ button.danger {
   line-height: 1.25;
 }
 
+.status-note {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
 .status-value-ontrack {
   color: var(--primary);
 }

@@ -316,7 +316,14 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (error) {
+    console.error("No se pudo guardar el estado local.", error);
+    alert("No se pudo guardar la informacion en este navegador. Exporta un respaldo para no perder los cambios.");
+    return false;
+  }
 }
 
 function sortPayments() {
@@ -548,6 +555,10 @@ function renderSummary(rows) {
   const balanceAtCurrentMonth = getBalanceAtMonth(rows, currentMonth);
   const currentBalance = Math.max(0, balanceAtCurrentMonth);
   const currentAdvance = Math.max(0, -balanceAtCurrentMonth);
+  const requiredAfterAdvance = currentBalance;
+  const coverageNote = currentAdvance > 0
+    ? `Saldo a favor aplicado: ${money(currentAdvance)}.`
+    : "No hay saldo a favor aplicado.";
   const lastCoveredMonthValue = getLastCoveredMonth(rows);
   const lastCoveredMonth = lastCoveredMonthValue ? monthLabel(lastCoveredMonthValue) : "Ningún mes totalmente cubierto";
   const lastCoveredMonthClass = lastCoveredMonthValue ? "month-value" : "month-value-empty";
@@ -568,9 +579,10 @@ function renderSummary(rows) {
       <span class="status-value ${statusValueTone}">${statusText}</span>
     </div>
     <div class="status-line is-highlight">
-      <span class="status-label">Exigido al mes actual</span>
+      <span class="status-label">Pendiente exigible al mes actual</span>
       <span class="status-meta"><span class="next-due-month">${currentMonthInfo.name}</span> ${currentMonthInfo.year}</span>
-      <span class="status-value amount-general">${money(currentBalance)}</span>
+      <span class="status-value amount-general">${money(requiredAfterAdvance)}</span>
+      <span class="status-note">${coverageNote}</span>
     </div>
     <div class="status-line is-month">
       <span class="status-label">Último mes totalmente cubierto</span>
@@ -909,6 +921,36 @@ function csvToBackupObject(text) {
   };
 }
 
+function looksLikeCsvBackup(text) {
+  const firstLine = String(text || "").split(/\r?\n/).find((line) => line.trim().length > 0);
+  if (!firstLine) return false;
+
+  try {
+    const header = parseCsvLine(firstLine.trim());
+    const legacyHeader = ["rowType", "version", "exportedAt", "monthlyDue", "secretaryPercent", "id", "month", "amount", "createdAt"];
+    const expectedHeader = ["rowType", "version", "exportedAt", "monthlyDue", "secretaryPercent", "startMonth", "id", "month", "amount", "createdAt"];
+    return header.join("|") === expectedHeader.join("|") || header.join("|") === legacyHeader.join("|");
+  } catch {
+    return false;
+  }
+}
+
+function parseBackupText(text, fileName, fileType) {
+  const lowerName = String(fileName || "").toLowerCase();
+  const lowerType = String(fileType || "").toLowerCase();
+  const trimmed = String(text || "").trimStart();
+
+  if (lowerName.endsWith(".csv") || lowerType.includes("csv") || looksLikeCsvBackup(text)) {
+    return csvToBackupObject(text);
+  }
+
+  if (lowerName.endsWith(".json") || lowerType.includes("json") || trimmed.startsWith("{")) {
+    return JSON.parse(text);
+  }
+
+  throw new Error("Formato de respaldo no reconocido. Usa un archivo JSON o CSV exportado por esta app.");
+}
+
 function downloadTextFile(content, fileName, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -923,7 +965,6 @@ function downloadTextFile(content, fileName, mimeType) {
 
 async function handleImportFile(file) {
   const fileName = String(file.name || "");
-  const lowerName = fileName.toLowerCase();
 
   if (file.size > MAX_IMPORT_FILE_BYTES) {
     alert("El respaldo es demasiado grande. El limite es 1 MB.");
@@ -934,11 +975,7 @@ async function handleImportFile(file) {
 
   let parsed;
   try {
-    if (lowerName.endsWith(".csv")) {
-      parsed = csvToBackupObject(text);
-    } else {
-      parsed = JSON.parse(text);
-    }
+    parsed = parseBackupText(text, fileName, file.type);
 
     validateImportData(parsed);
 
