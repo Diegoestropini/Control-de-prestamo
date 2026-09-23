@@ -169,7 +169,7 @@ function validateImportData(parsed) {
   }
 
   if (parsed.payments.length > MAX_IMPORT_PAYMENTS) {
-    throw new Error(`El respaldo supera el limite de ${MAX_IMPORT_PAYMENTS} pagos.`);
+    throw new Error(`El respaldo supera el límite de ${MAX_IMPORT_PAYMENTS} pagos.`);
   }
 
   try {
@@ -321,7 +321,7 @@ function saveState() {
     return true;
   } catch (error) {
     console.error("No se pudo guardar el estado local.", error);
-    alert("No se pudo guardar la informacion en este navegador. Exporta un respaldo para no perder los cambios.");
+    alert("No se pudo guardar la información en este navegador. Exporta un respaldo para no perder los cambios.");
     return false;
   }
 }
@@ -967,7 +967,7 @@ async function handleImportFile(file) {
   const fileName = String(file.name || "");
 
   if (file.size > MAX_IMPORT_FILE_BYTES) {
-    alert("El respaldo es demasiado grande. El limite es 1 MB.");
+    alert("El respaldo es demasiado grande. El límite es 1 MB.");
     return;
   }
 
@@ -979,7 +979,7 @@ async function handleImportFile(file) {
 
     validateImportData(parsed);
 
-    const ok = confirm("Se reemplazaran los datos actuales con el respaldo importado. Desea continuar?");
+    const ok = confirm("Se reemplazarán los datos actuales con el respaldo importado. ¿Desea continuar?");
     if (!ok) return;
 
     applyStateData(parsed);
@@ -1094,7 +1094,7 @@ historyToggleBtn.addEventListener("click", () => {
 });
 
 clearDataBtn.addEventListener("click", () => {
-  const ok = confirm("Esto borrara toda la informacion guardada localmente. Desea continuar?");
+  const ok = confirm("Esto borrará toda la información guardada localmente. ¿Desea continuar?");
   if (!ok) return;
 
   state.settings = getDefaultSettings();
