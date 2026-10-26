@@ -105,6 +105,10 @@ function parseStrictAmount(value) {
   return amount;
 }
 
+function toCents(value) {
+  return Math.round((value + Number.EPSILON) * 100);
+}
+
 function money(value) {
   return new Intl.NumberFormat("es-DO", {
     style: "currency",
@@ -416,7 +420,7 @@ function getMonthlyClosings(rows) {
 }
 
 function getBalanceAtMonth(rows, targetMonth) {
-  const monthlyDue = state.settings.monthlyDue;
+  const monthlyDueCents = toCents(state.settings.monthlyDue);
   const startMonth = getEffectiveStartMonth();
   if (targetMonth < startMonth) {
     return 0;
@@ -425,12 +429,12 @@ function getBalanceAtMonth(rows, targetMonth) {
   const closings = getMonthlyClosings(rows);
 
   if (closings.length === 0) {
-    return (monthDiff(startMonth, targetMonth) + 1) * monthlyDue;
+    return (monthDiff(startMonth, targetMonth) + 1) * monthlyDueCents / 100;
   }
 
   const firstRecordedMonth = closings[0].month;
   if (targetMonth < firstRecordedMonth) {
-    return (monthDiff(startMonth, targetMonth) + 1) * monthlyDue;
+    return (monthDiff(startMonth, targetMonth) + 1) * monthlyDueCents / 100;
   }
 
   let lastClosingBeforeTarget = null;
@@ -442,61 +446,30 @@ function getBalanceAtMonth(rows, targetMonth) {
   }
 
   if (!lastClosingBeforeTarget) {
-    return monthlyDue;
+    return monthlyDueCents / 100;
   }
 
   if (lastClosingBeforeTarget.month === targetMonth) {
     return lastClosingBeforeTarget.balanceNext;
   }
 
-  return lastClosingBeforeTarget.balanceNext + (monthDiff(lastClosingBeforeTarget.month, targetMonth) * monthlyDue);
+  return (toCents(lastClosingBeforeTarget.balanceNext) + monthDiff(lastClosingBeforeTarget.month, targetMonth) * monthlyDueCents) / 100;
 }
 
 function getLastCoveredMonth(rows) {
-  const monthlyDue = state.settings.monthlyDue;
-  if (monthlyDue <= 0) {
+  const monthlyDueCents = toCents(state.settings.monthlyDue);
+  if (monthlyDueCents <= 0) {
     return getCurrentMonthValue();
   }
 
-  if (rows.length === 0) {
-    return null;
-  }
+  // Los pagos cubren primero las cuotas más antiguas, aunque lleguen tarde.
+  const totalPaidCents = rows.reduce((sum, row) => sum + toCents(row.paid), 0);
+  const coveredMonths = Math.floor(totalPaidCents / monthlyDueCents);
+  if (coveredMonths === 0) return null;
 
-  const startMonth = getEffectiveStartMonth();
-  const closings = getMonthlyClosings(rows);
-  let lastCoveredMonth = null;
-  let previousMonth = startMonth;
-  let previousBalance = 0;
-
-  for (const closing of closings) {
-    let cursor = previousMonth;
-    while (cursor < closing.month) {
-      previousBalance += monthlyDue;
-      if (previousBalance <= 0) {
-        lastCoveredMonth = cursor;
-      }
-      cursor = addOneMonth(cursor);
-    }
-
-    previousBalance = closing.balanceNext;
-    if (previousBalance <= 0) {
-      lastCoveredMonth = closing.month;
-    }
-    previousMonth = addOneMonth(closing.month);
-  }
-
-  if (!previousMonth) {
-    return null;
-  }
-
-  let cursor = previousMonth;
-  while (previousBalance + monthlyDue <= 0) {
-    previousBalance += monthlyDue;
-    lastCoveredMonth = cursor;
-    cursor = addOneMonth(cursor);
-  }
-
-  return lastCoveredMonth;
+  const [year, month] = getEffectiveStartMonth().split("-").map(Number);
+  const monthIndex = year * 12 + month - 1 + coveredMonths - 1;
+  return `${String(Math.floor(monthIndex / 12)).padStart(4, "0")}-${String(monthIndex % 12 + 1).padStart(2, "0")}`;
 }
 
 function calculateRows() {
@@ -506,7 +479,7 @@ function calculateRows() {
   let balance = 0;
   let previousMonth = null;
   const startMonth = getEffectiveStartMonth();
-  const monthlyDue = state.settings.monthlyDue;
+  const monthlyDue = toCents(state.settings.monthlyDue);
   const percent = state.settings.secretaryPercent / 100;
 
   for (const payment of state.payments) {
@@ -517,14 +490,15 @@ function calculateRows() {
       balance += skippedMonths * monthlyDue;
     }
 
-    const balanceAtStart = balance;
-    const monthlyDueApplied = payment.month !== previousMonth ? monthlyDue : 0;
-    const expectedThisMonth = Math.max(0, balanceAtStart + monthlyDueApplied);
+    const balanceAtStart = balance / 100;
+    const monthlyDueAppliedCents = payment.month !== previousMonth ? monthlyDue : 0;
+    const monthlyDueApplied = monthlyDueAppliedCents / 100;
+    const expectedThisMonth = Math.max(0, balance + monthlyDueAppliedCents) / 100;
 
     const secretaryCommission = payment.amount * percent;
     const netForUser = payment.amount - secretaryCommission;
 
-    balance = balanceAtStart + monthlyDueApplied - payment.amount;
+    balance += monthlyDueAppliedCents - toCents(payment.amount);
 
     rows.push({
       id: payment.id,
@@ -535,13 +509,13 @@ function calculateRows() {
       paid: payment.amount,
       secretaryCommission,
       netForUser,
-      balanceNext: balance,
+      balanceNext: balance / 100,
     });
 
     previousMonth = payment.month;
   }
 
-  return { rows, finalBalance: balance };
+  return { rows, finalBalance: balance / 100 };
 }
 
 function renderSummary(rows) {
